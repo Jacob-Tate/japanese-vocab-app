@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { RotateCcw, Zap, Trophy } from 'lucide-react';
+import { api } from '../api';
 
 export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 }) {
   const [gameWords, setGameWords] = useState([]);
@@ -18,7 +19,30 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
 
   useEffect(() => {
     initGame();
+    loadHighScore();
   }, []);
+
+  const loadHighScore = async () => {
+    try {
+      const result = await api.getHighScore(set.id, 'speedmatch');
+      if (result) {
+        setHighScore(result.score);
+      }
+    } catch (error) {
+      console.error('Failed to load high score:', error);
+    }
+  };
+
+  const saveHighScoreIfNeeded = async (finalScore) => {
+    if (finalScore > highScore) {
+      try {
+        await api.saveHighScore(set.id, 'speedmatch', finalScore, { repetitions });
+        setHighScore(finalScore);
+      } catch (error) {
+        console.error('Failed to save high score:', error);
+      }
+    }
+  };
 
   useEffect(() => {
     if (isGameActive && timeLeft > 0) {
@@ -26,9 +50,7 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
       return () => clearTimeout(timer);
     } else if (timeLeft === 0) {
       setIsGameActive(false);
-      if (score > highScore) {
-        setHighScore(score);
-      }
+      saveHighScoreIfNeeded(score);
     }
   }, [timeLeft, isGameActive]);
 
@@ -129,7 +151,7 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
           setGrayedOut([]);
           setIsGameActive(false);
           if (score + points > highScore) {
-            setHighScore(score + points);
+            saveHighScoreIfNeeded(score + points);
           }
           return;
         }

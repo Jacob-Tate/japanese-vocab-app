@@ -42,6 +42,19 @@ db.serialize(() => {
       PRIMARY KEY (set_id, word_id)
     )
   `);
+
+  // High scores table
+  db.run(`
+    CREATE TABLE IF NOT EXISTS high_scores (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      set_id INTEGER NOT NULL,
+      game_mode TEXT NOT NULL,
+      score INTEGER NOT NULL,
+      metadata TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (set_id) REFERENCES sets(id) ON DELETE CASCADE
+    )
+  `);
 });
 
 // Database operations
@@ -238,6 +251,49 @@ export const dbOps = {
         (err) => {
           if (err) reject(err);
           else resolve();
+        }
+      );
+    });
+  },
+
+  // High score operations
+  saveHighScore(setId, gameMode, score, metadata = null) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'INSERT INTO high_scores (set_id, game_mode, score, metadata) VALUES (?, ?, ?, ?)',
+        [setId, gameMode, score, metadata ? JSON.stringify(metadata) : null],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ id: this.lastID });
+        }
+      );
+    });
+  },
+
+  getHighScore(setId, gameMode) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        'SELECT * FROM high_scores WHERE set_id = ? AND game_mode = ? ORDER BY score DESC LIMIT 1',
+        [setId, gameMode],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row || null);
+        }
+      );
+    });
+  },
+
+  getAllHighScores(setId) {
+    return new Promise((resolve, reject) => {
+      db.all(
+        `SELECT game_mode, MAX(score) as score, metadata, created_at 
+         FROM high_scores 
+         WHERE set_id = ? 
+         GROUP BY game_mode`,
+        [setId],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
         }
       );
     });

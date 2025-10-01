@@ -96,3 +96,32 @@ app.listen(PORT, () => {
     .then(() => console.log('Database cleanup complete'))
     .catch(err => console.error('Database cleanup error:', err));
 });
+
+// High score routes
+app.post('/api/highscores', async (req, res) => {
+  try {
+    const { setId, gameMode, score, metadata } = req.body;
+    const result = await dbOps.saveHighScore(setId, gameMode, score, metadata);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/highscores/:setId/:gameMode', async (req, res) => {
+  try {
+    const highScore = await dbOps.getHighScore(req.params.setId, req.params.gameMode);
+    res.json(highScore);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/highscores/:setId', async (req, res) => {
+  try {
+    const highScores = await dbOps.getAllHighScores(req.params.setId);
+    res.json(highScores);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});

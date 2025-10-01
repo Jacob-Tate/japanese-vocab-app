@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RotateCcw, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { api } from '../api';
 
 export default function TypingChallenge({ set, vocabulary, onExit, startingSide = 'japanese', questionCount = 10 }) {
   const [words, setWords] = useState([]);
@@ -10,11 +11,35 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
   const [streak, setStreak] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
   const [results, setResults] = useState([]);
+  const [highScore, setHighScore] = useState(0);
   const inputRef = useRef(null);
 
   useEffect(() => {
     initChallenge();
+    loadHighScore();
   }, []);
+
+  const loadHighScore = async () => {
+    try {
+      const result = await api.getHighScore(set.id, 'typing');
+      if (result) {
+        setHighScore(result.score);
+      }
+    } catch (error) {
+      console.error('Failed to load high score:', error);
+    }
+  };
+
+  const saveHighScoreIfNeeded = async (finalScore) => {
+    if (finalScore > highScore) {
+      try {
+        await api.saveHighScore(set.id, 'typing', finalScore, { questionCount, startingSide });
+        setHighScore(finalScore);
+      } catch (error) {
+        console.error('Failed to save high score:', error);
+      }
+    }
+  };
 
   useEffect(() => {
     if (inputRef.current) {
@@ -123,6 +148,7 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
         setFeedback(null);
       } else {
         setIsComplete(true);
+        saveHighScoreIfNeeded(score + points);
       }
     }, 1500);
   };
@@ -154,6 +180,12 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
           
           <div className="text-5xl font-bold text-blue-600 mb-2">{percentage}%</div>
           <p className="text-xl mb-2">Final Score: <span className="font-bold text-green-600">{score}</span></p>
+          {highScore > 0 && score < highScore && (
+            <p className="text-sm text-gray-600 mb-2">(Best: {highScore})</p>
+          )}
+          {score === highScore && score > 0 && (
+            <p className="text-yellow-600 font-bold mb-2">🏆 New High Score!</p>
+          )}
           <div className="flex justify-center gap-4 text-sm mb-6">
             <span className="text-green-600">✓ {correctCount} Perfect</span>
             <span className="text-yellow-600">~ {closeCount} Close</span>

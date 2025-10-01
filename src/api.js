@@ -55,5 +55,24 @@ export const api = {
       body: JSON.stringify(set)
     });
     return response.json();
+  },
+
+  async saveHighScore(setId, gameMode, score, metadata = null) {
+    const response = await fetch(`${API_URL}/highscores`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ setId, gameMode, score, metadata })
+    });
+    return response.json();
+  },
+
+  async getHighScore(setId, gameMode) {
+    const response = await fetch(`${API_URL}/highscores/${setId}/${gameMode}`);
+    return response.json();
+  },
+
+  async getAllHighScores(setId) {
+    const response = await fetch(`${API_URL}/highscores/${setId}`);
+    return response.json();
   }
 };
