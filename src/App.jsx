@@ -14,6 +14,7 @@ import MemoryPairs from './components/MemoryPairs';
 import AudioQuiz from './components/AudioQuiz';
 import SentenceScramble from './components/SentenceScramble';
 import PracticeSelector from './components/PracticeSelector';
+import ReloadPrompt from './ReloadPrompt';
 
 export default function JapaneseVocabApp() {
   const [vocabulary, setVocabulary] = useState([]);
@@ -62,46 +63,49 @@ export default function JapaneseVocabApp() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <header className="bg-white shadow-md p-4 sm:p-6 mb-4 sm:mb-6 rounded-lg sm:rounded-none">
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800">Japanese Vocabulary Practice</h1>
-        </header>
+    <> {/* Add a fragment to wrap the app and the prompt */}
+      <ReloadPrompt /> {/* Add the reload prompt component */}
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <header className="bg-white shadow-md p-4 sm:p-6 mb-4 sm:mb-6 rounded-lg sm:rounded-none">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800">Japanese Vocabulary Practice</h1>
+          </header>
 
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4 sm:mb-6">
-          <button onClick={() => setCurrentView('vocab')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all ${currentView === 'vocab' ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-50'}`}>
-            <Book size={20} /> Vocabulary
-          </button>
-          <button onClick={() => setCurrentView('sentences')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all ${currentView === 'sentences' ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-50'}`}>
-            <MessageSquare size={20} /> Sentences
-          </button>
-          <button onClick={() => setCurrentView('sets')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all ${currentView === 'sets' ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-50'}`}>
-            <Layers size={20} /> Sets
-          </button>
-          <button onClick={() => setCurrentView('practice')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all ${currentView === 'practice' ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-50'}`}>
-            <Play size={20} /> Practice
-          </button>
-        </div>
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4 sm:mb-6">
+            <button onClick={() => setCurrentView('vocab')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all ${currentView === 'vocab' ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-50'}`}>
+              <Book size={20} /> Vocabulary
+            </button>
+            <button onClick={() => setCurrentView('sentences')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all ${currentView === 'sentences' ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-50'}`}>
+              <MessageSquare size={20} /> Sentences
+            </button>
+            <button onClick={() => setCurrentView('sets')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all ${currentView === 'sets' ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-50'}`}>
+              <Layers size={20} /> Sets
+            </button>
+            <button onClick={() => setCurrentView('practice')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all ${currentView === 'practice' ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-50'}`}>
+              <Play size={20} /> Practice
+            </button>
+          </div>
 
-        <div className="bg-white rounded-lg shadow-lg">
-          {currentView === 'vocab' && <VocabularyManager vocabulary={vocabulary} onRefresh={loadData} />}
-          {currentView === 'sentences' && <SentenceManager sentences={sentences} onRefresh={loadData} />}
-          {currentView === 'sets' && <SetManager vocabulary={vocabulary} sentences={sentences} sets={sets} onRefresh={loadData} />}
-          {currentView === 'practice' && (
-            <PracticeSelector
-              sets={sets}
-              onStartGame={(set, reps) => { setActiveSet(set); setGameRepetitions(reps); setActiveGame('matching'); }}
-              onStartSpeedMatch={(set, reps) => { setActiveSet(set); setGameRepetitions(reps); setActiveGame('speedmatch'); }}
-              onStartFlashcard={(set, side) => { setActiveSet(set); setFlashcardStartingSide(side); setActiveGame('flashcard'); }}
-              onStartQuiz={(set, side, count) => { setActiveSet(set); setFlashcardStartingSide(side); setQuestionCount(count); setActiveGame('quiz'); }}
-              onStartTyping={(set, side, count, romaji) => { setActiveSet(set); setFlashcardStartingSide(side); setQuestionCount(count); setRomajiMode(romaji); setActiveGame('typing'); }}
-              onStartMemory={(set) => { setActiveSet(set); setActiveGame('memory'); }}
-              onStartAudioQuiz={(set, count) => { setActiveSet(set); setQuestionCount(count); setActiveGame('audioQuiz'); }}
-              onStartSentenceScramble={(set) => { setActiveSet(set); setActiveGame('sentenceScramble'); }}
-            />
-          )}
+          <div className="bg-white rounded-lg shadow-lg">
+            {currentView === 'vocab' && <VocabularyManager vocabulary={vocabulary} onRefresh={loadData} />}
+            {currentView === 'sentences' && <SentenceManager sentences={sentences} onRefresh={loadData} />}
+            {currentView === 'sets' && <SetManager vocabulary={vocabulary} sentences={sentences} sets={sets} onRefresh={loadData} />}
+            {currentView === 'practice' && (
+              <PracticeSelector
+                sets={sets}
+                onStartGame={(set, reps) => { setActiveSet(set); setGameRepetitions(reps); setActiveGame('matching'); }}
+                onStartSpeedMatch={(set, reps) => { setActiveSet(set); setGameRepetitions(reps); setActiveGame('speedmatch'); }}
+                onStartFlashcard={(set, side) => { setActiveSet(set); setFlashcardStartingSide(side); setActiveGame('flashcard'); }}
+                onStartQuiz={(set, side, count) => { setActiveSet(set); setFlashcardStartingSide(side); setQuestionCount(count); setActiveGame('quiz'); }}
+                onStartTyping={(set, side, count, romaji) => { setActiveSet(set); setFlashcardStartingSide(side); setQuestionCount(count); setRomajiMode(romaji); setActiveGame('typing'); }}
+                onStartMemory={(set) => { setActiveSet(set); setActiveGame('memory'); }}
+                onStartAudioQuiz={(set, count) => { setActiveSet(set); setQuestionCount(count); setActiveGame('audioQuiz'); }}
+                onStartSentenceScramble={(set) => { setActiveSet(set); setActiveGame('sentenceScramble'); }}
+              />
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
