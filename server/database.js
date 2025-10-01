@@ -1,3 +1,4 @@
+// server/database.js
 import sqlite3 from 'sqlite3';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -220,21 +221,29 @@ export const dbOps = {
               return;
             }
 
-            if (wordIds.length === 0) {
-              resolve();
-              return;
-            }
+            // Delete high scores associated with this set
+            db.run('DELETE FROM high_scores WHERE set_id = ?', [id], (err) => {
+              if (err) {
+                reject(err);
+                return;
+              }
 
-            // Insert new word associations
-            const stmt = db.prepare('INSERT INTO set_words (set_id, word_id) VALUES (?, ?)');
-            
-            wordIds.forEach((wordId) => {
-              stmt.run(id, wordId);
-            });
-            
-            stmt.finalize((err) => {
-              if (err) reject(err);
-              else resolve();
+              if (wordIds.length === 0) {
+                resolve();
+                return;
+              }
+
+              // Insert new word associations
+              const stmt = db.prepare('INSERT INTO set_words (set_id, word_id) VALUES (?, ?)');
+              
+              wordIds.forEach((wordId) => {
+                stmt.run(id, wordId);
+              });
+              
+              stmt.finalize((err) => {
+                if (err) reject(err);
+                else resolve();
+              });
             });
           });
         });
