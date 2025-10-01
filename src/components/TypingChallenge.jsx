@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { RotateCcw, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { api } from '../api';
 
-export default function TypingChallenge({ set, vocabulary, onExit, startingSide = 'japanese', questionCount = 10 }) {
+export default function TypingChallenge({ set, vocabulary, onExit, startingSide = 'japanese', questionCount = 10, romajiMode = false }) {
   const [words, setWords] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userInput, setUserInput] = useState('');
@@ -108,7 +108,20 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
 
     const currentWord = words[currentIndex];
     const correctAnswer = startingSide === 'japanese' ? currentWord.english : currentWord.japanese;
-    const similarity = calculateSimilarity(userInput, correctAnswer);
+    
+    // Convert romaji to hiragana if romaji mode is enabled
+    let processedInput = userInput;
+    let normalizedCorrect = correctAnswer;
+
+    if (romajiMode && startingSide === 'english' && wanakana) {
+      processedInput = wanakana.toHiragana(userInput);
+      console.log(processedInput);
+      // Also convert the correct answer to hiragana for fair comparison
+      normalizedCorrect = wanakana.toHiragana(correctAnswer);
+      console.log(normalizedCorrect);
+    }
+    
+    const similarity = calculateSimilarity(processedInput, normalizedCorrect);
 
     let points = 0;
     let feedbackType = 'wrong';
@@ -135,7 +148,7 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
     setFeedback({ type: feedbackType, message: feedbackMessage, points });
     setResults([...results, {
       word: currentWord,
-      userAnswer: userInput,
+      userAnswer: romajiMode ? `${userInput} (${processedInput})` : userInput,
       correctAnswer,
       isCorrect: similarity === 1,
       isClose: similarity >= 0.8 && similarity < 1
@@ -268,6 +281,11 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
       <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 mb-6">
         <p className="text-sm text-gray-500 mb-2">
           Type the {startingSide === 'japanese' ? 'English' : 'Japanese'} translation:
+          {romajiMode && startingSide === 'english' && (
+            <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-semibold">
+              ROMAJI MODE
+            </span>
+          )}
         </p>
         <h3 className="text-4xl sm:text-5xl font-bold mb-8 text-center">
           {startingSide === 'japanese' ? currentWord.japanese : currentWord.english}
@@ -280,10 +298,19 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
             value={userInput}
             onChange={(e) => setUserInput(e.target.value)}
             disabled={feedback !== null}
-            className="w-full px-4 py-3 text-xl border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4 text-center"
-            placeholder="Type your answer..."
+            className="w-full px-4 py-3 text-xl border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2 text-center"
+            placeholder={romajiMode ? "Type in romaji..." : "Type your answer..."}
             autoComplete="off"
           />
+          
+          {romajiMode && startingSide === 'english' && userInput && wanakana && (
+            <div className="text-center mb-4 text-gray-600">
+              <span className="text-sm">Converts to: </span>
+              <span className="text-2xl font-bold text-blue-600">
+                {wanakana.toHiragana(userInput)}
+              </span>
+            </div>
+          )}
 
           {feedback && (
             <div className={`p-4 rounded-lg mb-4 text-center ${

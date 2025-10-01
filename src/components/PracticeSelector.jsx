@@ -7,6 +7,7 @@ export default function PracticeSelector({ sets, vocabulary, onStartGame, onStar
   const [repetitions, setRepetitions] = useState(3);
   const [startingSide, setStartingSide] = useState('japanese');
   const [questionCount, setQuestionCount] = useState(10);
+  const [romajiMode, setRomajiMode] = useState(false);
 
   const handleStart = () => {
     if (selectedSet && mode) {
@@ -24,7 +25,7 @@ export default function PracticeSelector({ sets, vocabulary, onStartGame, onStar
           onStartQuiz(selectedSet, startingSide, questionCount);
           break;
         case 'typing':
-          onStartTyping(selectedSet, startingSide, questionCount);
+          onStartTyping(selectedSet, startingSide, questionCount, romajiMode);
           break;
         case 'memory':
           onStartMemory(selectedSet);
@@ -202,6 +203,23 @@ export default function PracticeSelector({ sets, vocabulary, onStartGame, onStar
                       : `${questionCount} questions selected`
                     }
                   </p>
+                </div>
+              )}
+              
+              {mode === 'typing' && startingSide === 'english' && (
+                <div className="mb-6">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={romajiMode}
+                      onChange={(e) => setRomajiMode(e.target.checked)}
+                      className="w-5 h-5 text-blue-600"
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Enable Romaji Input</span>
+                      <p className="text-xs text-gray-500">Type in romaji (e.g., "konnichiwa") instead of kana</p>
+                    </div>
+                  </label>
                 </div>
               )}
               

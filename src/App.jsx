@@ -20,6 +20,7 @@ export default function JapaneseVocabApp() {
   const [gameRepetitions, setGameRepetitions] = useState(3);
   const [flashcardStartingSide, setFlashcardStartingSide] = useState('japanese');
   const [questionCount, setQuestionCount] = useState(10);
+  const [romajiMode, setRomajiMode] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -100,6 +101,7 @@ export default function JapaneseVocabApp() {
         vocabulary={vocabulary}
         startingSide={flashcardStartingSide}
         questionCount={questionCount}
+        romajiMode={romajiMode}
         onExit={() => {
           setActiveGame(null);
           setActiveSet(null);
@@ -195,10 +197,11 @@ export default function JapaneseVocabApp() {
                 setQuestionCount(count);
                 setActiveGame('quiz');
               }}
-              onStartTyping={(set, side, count) => {
+              onStartTyping={(set, side, count, romaji) => {
                 setActiveSet(set);
                 setFlashcardStartingSide(side);
                 setQuestionCount(count);
+                setRomajiMode(romaji);
                 setActiveGame('typing');
               }}
               onStartMemory={(set) => {
