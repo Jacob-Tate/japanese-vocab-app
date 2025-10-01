@@ -15,6 +15,7 @@ import AudioQuiz from './components/AudioQuiz';
 import SentenceScramble from './components/SentenceScramble';
 import PracticeSelector from './components/PracticeSelector';
 import ReloadPrompt from './ReloadPrompt';
+import TypingBlitz from './components/TypingBlitz';
 
 export default function JapaneseVocabApp() {
   const [vocabulary, setVocabulary] = useState([]);
@@ -55,7 +56,8 @@ export default function JapaneseVocabApp() {
     typing: <TypingChallenge set={activeSet} vocabulary={vocabulary} startingSide={flashcardStartingSide} questionCount={questionCount} romajiMode={romajiMode} onExit={exitGame} />,
     memory: <MemoryPairs set={activeSet} vocabulary={vocabulary} onExit={exitGame} />,
     audioQuiz: <AudioQuiz set={activeSet} vocabulary={vocabulary} questionCount={questionCount} onExit={exitGame} />,
-    sentenceScramble: <SentenceScramble set={activeSet} sentences={sentences} onExit={exitGame} />
+    sentenceScramble: <SentenceScramble set={activeSet} sentences={sentences} onExit={exitGame} />,
+    typingBlitz: <TypingBlitz set={activeSet} vocabulary={vocabulary} onExit={exitGame} />,
   };
 
   if (activeGame && activeSet && gameComponents[activeGame]) {
@@ -98,6 +100,7 @@ export default function JapaneseVocabApp() {
                 onStartFlashcard={(set, side) => { setActiveSet(set); setFlashcardStartingSide(side); setActiveGame('flashcard'); }}
                 onStartQuiz={(set, side, count) => { setActiveSet(set); setFlashcardStartingSide(side); setQuestionCount(count); setActiveGame('quiz'); }}
                 onStartTyping={(set, side, count, romaji) => { setActiveSet(set); setFlashcardStartingSide(side); setQuestionCount(count); setRomajiMode(romaji); setActiveGame('typing'); }}
+                onStartTypingBlitz={(set) => { setActiveSet(set); setActiveGame('typingBlitz'); }}
                 onStartMemory={(set) => { setActiveSet(set); setActiveGame('memory'); }}
                 onStartAudioQuiz={(set, count) => { setActiveSet(set); setQuestionCount(count); setActiveGame('audioQuiz'); }}
                 onStartSentenceScramble={(set) => { setActiveSet(set); setActiveGame('sentenceScramble'); }}

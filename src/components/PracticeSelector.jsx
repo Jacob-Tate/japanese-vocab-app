@@ -1,6 +1,6 @@
 // src/components/PracticeSelector.jsx
 import React, { useState, useEffect } from 'react';
-import { Book, Play, Layers, Zap, ListChecks, Keyboard, Grid3x3, Volume2, Trophy, MessageSquare } from 'lucide-react';
+import { Book, Play, Layers, Zap, ListChecks, Keyboard, Grid3x3, Volume2, Trophy, MessageSquare, Diameter } from 'lucide-react';
 import { api } from '../api';
 
 function HighScores({ scores }) {
@@ -23,7 +23,7 @@ function HighScores({ scores }) {
   );
 }
 
-export default function PracticeSelector({ sets, onStartGame, onStartFlashcard, onStartSpeedMatch, onStartQuiz, onStartTyping, onStartMemory, onStartAudioQuiz, onStartSentenceScramble }) {
+export default function PracticeSelector({ sets, onStartGame, onStartFlashcard, onStartSpeedMatch, onStartQuiz, onStartTyping, onStartTypingBlitz, onStartMemory, onStartAudioQuiz, onStartSentenceScramble }) {
   const [selectedSet, setSelectedSet] = useState(null);
   const [highScores, setHighScores] = useState([]);
   const [mode, setMode] = useState(null);
@@ -51,6 +51,7 @@ export default function PracticeSelector({ sets, onStartGame, onStartFlashcard, 
         case 'memory': onStartMemory(selectedSet); break;
         case 'audioQuiz': onStartAudioQuiz(selectedSet, questionCount); break;
         case 'sentenceScramble': onStartSentenceScramble(selectedSet); break;
+        case 'typingBlitz': onStartTypingBlitz(selectedSet); break;
       }
     }
   };
@@ -61,6 +62,7 @@ export default function PracticeSelector({ sets, onStartGame, onStartFlashcard, 
     { key: 'flashcard', name: 'Flashcard Drill', desc: 'Study cards in random order', icon: Book, color: 'blue', content: 'words' },
     { key: 'quiz', name: 'Multiple Choice', desc: 'Choose the right answer', icon: ListChecks, color: 'green', content: 'words' },
     { key: 'typing', name: 'Typing Challenge', desc: 'Type the translation', icon: Keyboard, color: 'purple', content: 'words' },
+    { key: 'typingBlitz', name: 'Typing Blitz', desc: 'Falling words arcade game', icon: Diameter, color: 'red', content: 'words' },
     { key: 'memory', name: 'Memory Pairs', desc: 'Classic memory card game', icon: Grid3x3, color: 'pink', content: 'words' },
     { key: 'audioQuiz', name: 'Audio Quiz', desc: 'Listen and choose', icon: Volume2, color: 'teal', content: 'words' },
     { key: 'sentenceScramble', name: 'Sentence Scramble', desc: 'Unscramble the sentence', icon: MessageSquare, color: 'indigo', content: 'sentences' },
