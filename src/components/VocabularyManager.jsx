@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+// src/components/VocabularyManager.jsx
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, X, Check, Search, AlertTriangle } from 'lucide-react';
 import { api } from '../api';
 
@@ -8,6 +9,22 @@ export default function VocabularyManager({ vocabulary, onRefresh }) {
   const [showSuccess, setShowSuccess] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirmation, setDeleteConfirmation] = useState(null);
+  const japaneseInputRef = useRef(null);
+
+  // Bind wanakana to the Japanese input field for Romaji-to-Kana conversion
+  useEffect(() => {
+    const inputElement = japaneseInputRef.current;
+    if (inputElement && window.wanakana) {
+      window.wanakana.bind(inputElement);
+    }
+    
+    // Cleanup function to unbind wanakana when the component unmounts
+    return () => {
+      if (inputElement && window.wanakana) {
+        window.wanakana.unbind(inputElement);
+      }
+    };
+  }, []);
 
   const handleAdd = async () => {
     if (japanese.trim() && english.trim()) {
@@ -103,8 +120,9 @@ export default function VocabularyManager({ vocabulary, onRefresh }) {
         <h3 className="text-base sm:text-lg font-semibold mb-4">Add New Word</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <input
+            ref={japaneseInputRef}
             type="text"
-            placeholder="Japanese"
+            placeholder="Japanese (e.g., type 'sushi')"
             value={japanese}
             onChange={(e) => setJapanese(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
