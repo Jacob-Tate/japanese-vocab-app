@@ -1,8 +1,9 @@
 // src/App.jsx
 import React, { useState, useEffect } from 'react';
-import { Book, Layers, Play } from 'lucide-react';
+import { Book, Layers, Play, MessageSquare } from 'lucide-react';
 import { api } from './api';
 import VocabularyManager from './components/VocabularyManager';
+import SentenceManager from './components/SentenceManager';
 import SetManager from './components/SetManager';
 import MatchingGame from './components/MatchingGame';
 import SpeedMatch from './components/SpeedMatch';
@@ -11,10 +12,12 @@ import MultipleChoiceQuiz from './components/MultipleChoiceQuiz';
 import TypingChallenge from './components/TypingChallenge';
 import MemoryPairs from './components/MemoryPairs';
 import AudioQuiz from './components/AudioQuiz';
+import SentenceScramble from './components/SentenceScramble';
 import PracticeSelector from './components/PracticeSelector';
 
 export default function JapaneseVocabApp() {
   const [vocabulary, setVocabulary] = useState([]);
+  const [sentences, setSentences] = useState([]);
   const [sets, setSets] = useState([]);
   const [currentView, setCurrentView] = useState('vocab');
   const [activeGame, setActiveGame] = useState(null);
@@ -30,8 +33,10 @@ export default function JapaneseVocabApp() {
 
   const loadData = async () => {
     const vocab = await api.getAllVocab();
+    const allSentences = await api.getAllSentences();
     const allSets = await api.getAllSets();
     setVocabulary(vocab);
+    setSentences(allSentences);
     setSets(allSets);
   };
 
@@ -41,83 +46,19 @@ export default function JapaneseVocabApp() {
     setCurrentView('practice');
   };
 
-  if (activeGame === 'matching' && activeSet) {
-    return (
-      <MatchingGame
-        set={activeSet}
-        vocabulary={vocabulary}
-        repetitions={gameRepetitions}
-        onExit={exitGame}
-      />
-    );
-  }
+  const gameComponents = {
+    matching: <MatchingGame set={activeSet} vocabulary={vocabulary} repetitions={gameRepetitions} onExit={exitGame} />,
+    speedmatch: <SpeedMatch set={activeSet} vocabulary={vocabulary} repetitions={gameRepetitions} onExit={exitGame} />,
+    flashcard: <FlashcardDrill set={activeSet} vocabulary={vocabulary} startingSide={flashcardStartingSide} onExit={exitGame} />,
+    quiz: <MultipleChoiceQuiz set={activeSet} vocabulary={vocabulary} startingSide={flashcardStartingSide} questionCount={questionCount} onExit={exitGame} />,
+    typing: <TypingChallenge set={activeSet} vocabulary={vocabulary} startingSide={flashcardStartingSide} questionCount={questionCount} romajiMode={romajiMode} onExit={exitGame} />,
+    memory: <MemoryPairs set={activeSet} vocabulary={vocabulary} onExit={exitGame} />,
+    audioQuiz: <AudioQuiz set={activeSet} vocabulary={vocabulary} questionCount={questionCount} onExit={exitGame} />,
+    sentenceScramble: <SentenceScramble set={activeSet} sentences={sentences} onExit={exitGame} />
+  };
 
-  if (activeGame === 'speedmatch' && activeSet) {
-    return (
-      <SpeedMatch
-        set={activeSet}
-        vocabulary={vocabulary}
-        repetitions={gameRepetitions}
-        onExit={exitGame}
-      />
-    );
-  }
-
-  if (activeGame === 'flashcard' && activeSet) {
-    return (
-      <FlashcardDrill
-        set={activeSet}
-        vocabulary={vocabulary}
-        startingSide={flashcardStartingSide}
-        onExit={exitGame}
-      />
-    );
-  }
-
-  if (activeGame === 'quiz' && activeSet) {
-    return (
-      <MultipleChoiceQuiz
-        set={activeSet}
-        vocabulary={vocabulary}
-        startingSide={flashcardStartingSide}
-        questionCount={questionCount}
-        onExit={exitGame}
-      />
-    );
-  }
-
-  if (activeGame === 'typing' && activeSet) {
-    return (
-      <TypingChallenge
-        set={activeSet}
-        vocabulary={vocabulary}
-        startingSide={flashcardStartingSide}
-        questionCount={questionCount}
-        romajiMode={romajiMode}
-        onExit={exitGame}
-      />
-    );
-  }
-
-  if (activeGame === 'memory' && activeSet) {
-    return (
-      <MemoryPairs
-        set={activeSet}
-        vocabulary={vocabulary}
-        onExit={exitGame}
-      />
-    );
-  }
-
-  if (activeGame === 'audioQuiz' && activeSet) {
-    return (
-      <AudioQuiz
-        set={activeSet}
-        vocabulary={vocabulary}
-        questionCount={questionCount}
-        onExit={exitGame}
-      />
-    );
+  if (activeGame && activeSet && gameComponents[activeGame]) {
+    return gameComponents[activeGame];
   }
 
   return (
@@ -128,86 +69,35 @@ export default function JapaneseVocabApp() {
         </header>
 
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4 sm:mb-6">
-          <button
-            onClick={() => setCurrentView('vocab')}
-            className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all ${
-              currentView === 'vocab'
-                ? 'bg-blue-500 text-white'
-                : 'bg-white hover:bg-gray-50'
-            }`}
-          >
+          <button onClick={() => setCurrentView('vocab')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all ${currentView === 'vocab' ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-50'}`}>
             <Book size={20} /> Vocabulary
           </button>
-          <button
-            onClick={() => setCurrentView('sets')}
-            className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all ${
-              currentView === 'sets'
-                ? 'bg-blue-500 text-white'
-                : 'bg-white hover:bg-gray-50'
-            }`}
-          >
+          <button onClick={() => setCurrentView('sentences')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all ${currentView === 'sentences' ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-50'}`}>
+            <MessageSquare size={20} /> Sentences
+          </button>
+          <button onClick={() => setCurrentView('sets')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all ${currentView === 'sets' ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-50'}`}>
             <Layers size={20} /> Sets
           </button>
-          <button
-            onClick={() => setCurrentView('practice')}
-            className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all ${
-              currentView === 'practice'
-                ? 'bg-blue-500 text-white'
-                : 'bg-white hover:bg-gray-50'
-            }`}
-          >
+          <button onClick={() => setCurrentView('practice')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all ${currentView === 'practice' ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-50'}`}>
             <Play size={20} /> Practice
           </button>
         </div>
 
         <div className="bg-white rounded-lg shadow-lg">
-          {currentView === 'vocab' && (
-            <VocabularyManager vocabulary={vocabulary} onRefresh={loadData} />
-          )}
-          {currentView === 'sets' && (
-            <SetManager vocabulary={vocabulary} sets={sets} onRefresh={loadData} />
-          )}
+          {currentView === 'vocab' && <VocabularyManager vocabulary={vocabulary} onRefresh={loadData} />}
+          {currentView === 'sentences' && <SentenceManager sentences={sentences} onRefresh={loadData} />}
+          {currentView === 'sets' && <SetManager vocabulary={vocabulary} sentences={sentences} sets={sets} onRefresh={loadData} />}
           {currentView === 'practice' && (
             <PracticeSelector
               sets={sets}
-              vocabulary={vocabulary}
-              onStartGame={(set, reps) => {
-                setActiveSet(set);
-                setGameRepetitions(reps);
-                setActiveGame('matching');
-              }}
-              onStartSpeedMatch={(set, reps) => {
-                setActiveSet(set);
-                setGameRepetitions(reps);
-                setActiveGame('speedmatch');
-              }}
-              onStartFlashcard={(set, side) => {
-                setActiveSet(set);
-                setFlashcardStartingSide(side);
-                setActiveGame('flashcard');
-              }}
-              onStartQuiz={(set, side, count) => {
-                setActiveSet(set);
-                setFlashcardStartingSide(side);
-                setQuestionCount(count);
-                setActiveGame('quiz');
-              }}
-              onStartTyping={(set, side, count, romaji) => {
-                setActiveSet(set);
-                setFlashcardStartingSide(side);
-                setQuestionCount(count);
-                setRomajiMode(romaji);
-                setActiveGame('typing');
-              }}
-              onStartMemory={(set) => {
-                setActiveSet(set);
-                setActiveGame('memory');
-              }}
-              onStartAudioQuiz={(set, count) => {
-                setActiveSet(set);
-                setQuestionCount(count);
-                setActiveGame('audioQuiz');
-              }}
+              onStartGame={(set, reps) => { setActiveSet(set); setGameRepetitions(reps); setActiveGame('matching'); }}
+              onStartSpeedMatch={(set, reps) => { setActiveSet(set); setGameRepetitions(reps); setActiveGame('speedmatch'); }}
+              onStartFlashcard={(set, side) => { setActiveSet(set); setFlashcardStartingSide(side); setActiveGame('flashcard'); }}
+              onStartQuiz={(set, side, count) => { setActiveSet(set); setFlashcardStartingSide(side); setQuestionCount(count); setActiveGame('quiz'); }}
+              onStartTyping={(set, side, count, romaji) => { setActiveSet(set); setFlashcardStartingSide(side); setQuestionCount(count); setRomajiMode(romaji); setActiveGame('typing'); }}
+              onStartMemory={(set) => { setActiveSet(set); setActiveGame('memory'); }}
+              onStartAudioQuiz={(set, count) => { setActiveSet(set); setQuestionCount(count); setActiveGame('audioQuiz'); }}
+              onStartSentenceScramble={(set) => { setActiveSet(set); setActiveGame('sentenceScramble'); }}
             />
           )}
         </div>

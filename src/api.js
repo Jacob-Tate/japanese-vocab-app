@@ -1,3 +1,4 @@
+// src/api.js
 const API_URL = '/api';
 
 export const api = {
@@ -16,14 +17,31 @@ export const api = {
   },
   
   async deleteVocab(id) {
-    const response = await fetch(`${API_URL}/vocabulary/${id}`, {
-      method: 'DELETE'
-    });
+    const response = await fetch(`${API_URL}/vocabulary/${id}`, { method: 'DELETE' });
     return response.json();
   },
 
   async getSetsContainingWord(id) {
     const response = await fetch(`${API_URL}/vocabulary/${id}/sets`);
+    return response.json();
+  },
+
+  async addSentence(sentence) {
+    const response = await fetch(`${API_URL}/sentences`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sentence)
+    });
+    return response.json();
+  },
+  
+  async getAllSentences() {
+    const response = await fetch(`${API_URL}/sentences`);
+    return response.json();
+  },
+  
+  async deleteSentence(id) {
+    const response = await fetch(`${API_URL}/sentences/${id}`, { method: 'DELETE' });
     return response.json();
   },
   
@@ -42,9 +60,7 @@ export const api = {
   },
   
   async deleteSet(id) {
-    const response = await fetch(`${API_URL}/sets/${id}`, {
-      method: 'DELETE'
-    });
+    const response = await fetch(`${API_URL}/sets/${id}`, { method: 'DELETE' });
     return response.json();
   },
 
