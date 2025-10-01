@@ -5,9 +5,9 @@ import { RotateCcw, Zap } from 'lucide-react';
 const GAME_WIDTH = 800;
 const GAME_HEIGHT = 500;
 const WORD_SPEED = 0.5;
-const INPUT_AREA_HEIGHT = 80; // The height of the input form area at the bottom
+const INPUT_AREA_HEIGHT = 120; // Increased height for romaji preview
 
-export default function TypingBlitz({ set, vocabulary, onExit }) {
+export default function TypingBlitz({ set, vocabulary, onExit, fallingLanguage = 'japanese', romajiMode = false }) {
   const [userInput, setUserInput] = useState('');
   const [gameState, setGameState] = useState({
     words: [],
@@ -16,12 +16,11 @@ export default function TypingBlitz({ set, vocabulary, onExit }) {
     isGameOver: false,
   });
   
-  // Ref to hold the synchronous, mutable game state for the animation loop
+  const targetLanguage = fallingLanguage === 'japanese' ? 'english' : 'japanese';
   const gameStateRef = useRef(gameState);
   const gameLoopRef = useRef();
   const inputRef = useRef();
 
-  // Keep the ref in sync with the state
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
@@ -53,9 +52,8 @@ export default function TypingBlitz({ set, vocabulary, onExit }) {
 
   useEffect(() => {
     startGame();
-  }, [set.id]);
+  }, [set.id, fallingLanguage, romajiMode]);
 
-  // Effect for adding new words over time
   useEffect(() => {
     if (gameState.isGameOver) return;
     
@@ -69,41 +67,34 @@ export default function TypingBlitz({ set, vocabulary, onExit }) {
     return () => clearInterval(wordInterval);
   }, [gameState.isGameOver, set.id]);
 
-
-  // The main game loop
   useEffect(() => {
     const gameTick = () => {
-      // Stop the loop if the game is over
       if (gameStateRef.current.isGameOver) {
         return;
       }
       
       let livesLost = 0;
-      
-      // Update word positions and check for fallen words
-      const remainingWords = gameStateRef.current.words
+      const updatedWords = gameStateRef.current.words
         .map(word => ({ ...word, y: word.y + WORD_SPEED }))
         .filter(word => {
           if (word.y > GAME_HEIGHT - INPUT_AREA_HEIGHT) {
             livesLost++;
-            return false; // This word has fallen, so remove it
+            return false;
           }
-          return true; // Keep this word
+          return true;
         });
 
-      // If lives were lost, schedule a state update
       if (livesLost > 0) {
         const newLives = gameStateRef.current.lives - livesLost;
         const isGameOver = newLives <= 0;
         setGameState(prev => ({
           ...prev,
-          words: remainingWords,
-          lives: newLives,
+          words: updatedWords,
+          lives: newLives > 0 ? newLives : 0,
           isGameOver,
         }));
       } else {
-        // Otherwise, just update the word positions
-        setGameState(prev => ({ ...prev, words: remainingWords }));
+        setGameState(prev => ({ ...prev, words: updatedWords }));
       }
 
       gameLoopRef.current = requestAnimationFrame(gameTick);
@@ -111,14 +102,28 @@ export default function TypingBlitz({ set, vocabulary, onExit }) {
 
     gameLoopRef.current = requestAnimationFrame(gameTick);
     return () => cancelAnimationFrame(gameLoopRef.current);
-  }, []); // This effect should only run once to start the loop
+  }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const typed = userInput.trim().toLowerCase();
+    const typed = userInput.trim();
     if (!typed || gameState.isGameOver) return;
 
-    const matchedWord = gameState.words.find(w => w.english.toLowerCase() === typed);
+    let matchedWord;
+
+    if (targetLanguage === 'english') {
+      matchedWord = gameState.words.find(w => w.english.toLowerCase() === typed.toLowerCase());
+    } else { // japanese
+      let processedInput = typed;
+      if (romajiMode && wanakana) {
+        processedInput = wanakana.toHiragana(typed, { passRomaji: true });
+      }
+      matchedWord = gameState.words.find(w => 
+        w.japanese === processedInput ||
+        (wanakana && wanakana.toHiragana(w.japanese) === processedInput)
+      );
+    }
+    
     if (matchedWord) {
       setGameState(prev => ({
         ...prev,
@@ -151,20 +156,32 @@ export default function TypingBlitz({ set, vocabulary, onExit }) {
         <div className="bg-gray-800 rounded-lg shadow-inner overflow-hidden relative" style={{ width: GAME_WIDTH, height: GAME_HEIGHT, maxWidth: '100%' }}>
           {gameState.words.map(word => (
             <div key={word.id} className="absolute text-white font-bold bg-indigo-500 px-3 py-1 rounded" style={{ left: word.x, top: word.y, fontSize: '1.2rem' }}>
-              {word.japanese}
+              {word[fallingLanguage]}
             </div>
           ))}
-          <form onSubmit={handleSubmit} className="absolute bottom-0 left-0 right-0 p-4 bg-gray-900/50" style={{ height: INPUT_AREA_HEIGHT }}>
-            <input
-              ref={inputRef}
-              type="text"
-              value={userInput}
-              onChange={e => setUserInput(e.target.value)}
-              placeholder="Type English translation..."
-              className="w-full px-4 py-3 text-lg border-2 border-gray-400 rounded-lg bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
-              autoComplete="off"
-            />
-          </form>
+          <div className="absolute bottom-0 left-0 right-0 p-4 bg-gray-900/50 flex flex-col justify-end" style={{ height: INPUT_AREA_HEIGHT }}>
+            {targetLanguage === 'japanese' && romajiMode && userInput && wanakana && (
+              <div className="text-center mb-2 text-gray-400 transition-opacity duration-300">
+                <span className="text-sm">Preview: </span>
+                <span className="text-xl font-bold text-white">{wanakana.toHiragana(userInput, { passRomaji: true })}</span>
+              </div>
+            )}
+            <form onSubmit={handleSubmit}>
+              <input
+                ref={inputRef}
+                type="text"
+                value={userInput}
+                onChange={e => setUserInput(e.target.value)}
+                placeholder={
+                  targetLanguage === 'japanese' && romajiMode
+                  ? "Type in romaji..."
+                  : `Type ${targetLanguage} translation...`
+                }
+                className="w-full px-4 py-3 text-lg border-2 border-gray-400 rounded-lg bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                autoComplete="off"
+              />
+            </form>
+          </div>
         </div>
       )}
     </div>

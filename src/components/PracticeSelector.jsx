@@ -51,7 +51,7 @@ export default function PracticeSelector({ sets, onStartGame, onStartFlashcard, 
         case 'memory': onStartMemory(selectedSet); break;
         case 'audioQuiz': onStartAudioQuiz(selectedSet, questionCount); break;
         case 'sentenceScramble': onStartSentenceScramble(selectedSet); break;
-        case 'typingBlitz': onStartTypingBlitz(selectedSet); break;
+        case 'typingBlitz': onStartTypingBlitz(selectedSet, startingSide, romajiMode); break;
       }
     }
   };
@@ -158,6 +158,38 @@ export default function PracticeSelector({ sets, onStartGame, onStartFlashcard, 
                   </div>
                 </div>
               )}
+            </div>
+          )}
+          
+          {mode === 'typingBlitz' && (
+            <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+              <h3 className="text-base sm:text-lg font-semibold mb-4">Typing Blitz Settings</h3>
+              
+              {startingSide === 'english' && (
+                <div className="mb-6">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" checked={romajiMode} onChange={(e) => setRomajiMode(e.target.checked)} className="w-5 h-5 text-blue-600"/>
+                    <div>
+                      <span className="text-sm font-medium text-gray-700">Enable Romaji Input</span>
+                      <p className="text-xs text-gray-500">Type in romaji (e.g., "konnichiwa") instead of kana</p>
+                    </div>
+                  </label>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">Falling Language</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <button onClick={() => setStartingSide('japanese')} className={`p-3 sm:p-4 rounded-lg border-2 transition-all ${startingSide === 'japanese' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-200'}`}>
+                    <div className="font-semibold text-base sm:text-lg mb-1">日本語 Falling</div>
+                    <div className="text-xs sm:text-sm text-gray-600">Type the English translation</div>
+                  </button>
+                  <button onClick={() => setStartingSide('english')} className={`p-3 sm:p-4 rounded-lg border-2 transition-all ${startingSide === 'english' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-200'}`}>
+                    <div className="font-semibold text-base sm:text-lg mb-1">English Falling</div>
+                    <div className="text-xs sm:text-sm text-gray-600">Type the Japanese translation</div>
+                  </button>
+                </div>
+              </div>
             </div>
           )}
           
