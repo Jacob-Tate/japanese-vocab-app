@@ -1,13 +1,24 @@
-// src/components/MultipleChoiceQuiz.jsx
+// src/components/AudioQuiz.jsx
 import React, { useState, useEffect } from 'react';
-import { RotateCcw, CheckCircle, XCircle } from 'lucide-react';
+import { RotateCcw, Volume2, CheckCircle, XCircle } from 'lucide-react';
 import { api } from '../api';
 
-export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSide = 'japanese', questionCount = 10 }) {
+// Simple Text-to-Speech utility
+const speak = (text, lang = 'ja-JP') => {
+  if ('speechSynthesis' in window) {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = lang;
+    window.speechSynthesis.speak(utterance);
+  } else {
+    alert('Sorry, your browser does not support text-to-speech.');
+  }
+};
+
+export default function AudioQuiz({ set, vocabulary, onExit, questionCount = 10 }) {
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
-  const [feedback, setFeedback] = useState(null); // null, 'correct', 'wrong'
+  const [feedback, setFeedback] = useState(null);
   const [score, setScore] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
   const [highScore, setHighScore] = useState(0);
@@ -19,10 +30,8 @@ export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSi
 
   const loadHighScore = async () => {
     try {
-      const result = await api.getHighScore(set.id, 'quiz');
-      if (result) {
-        setHighScore(result.score);
-      }
+      const result = await api.getHighScore(set.id, 'audio_quiz');
+      if (result) setHighScore(result.score);
     } catch (error) {
       console.error('Failed to load high score:', error);
     }
@@ -31,7 +40,7 @@ export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSi
   const saveHighScoreIfNeeded = async (finalScore) => {
     if (finalScore > highScore) {
       try {
-        await api.saveHighScore(set.id, 'quiz', finalScore, { questionCount, startingSide });
+        await api.saveHighScore(set.id, 'audio_quiz', finalScore, { questionCount });
         setHighScore(finalScore);
       } catch (error) {
         console.error('Failed to save high score:', error);
@@ -47,7 +56,6 @@ export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSi
       return;
     }
     
-    // Create a pool of questions, repeating if necessary
     let questionPool = [...wordsInSet];
     while(questionPool.length < questionCount) {
         questionPool.push(...wordsInSet);
@@ -66,9 +74,9 @@ export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSi
           .sort(() => Math.random() - 0.5);
         
         return {
-          question: startingSide === 'japanese' ? correctWord.japanese : correctWord.english,
-          options: options.map(opt => startingSide === 'japanese' ? opt.english : opt.japanese),
-          correctAnswer: startingSide === 'japanese' ? correctWord.english : correctWord.japanese,
+          questionWord: correctWord,
+          options: options.map(opt => opt.english),
+          correctAnswer: correctWord.english,
         };
       });
 
@@ -81,7 +89,7 @@ export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSi
   };
 
   const handleAnswer = (answer) => {
-    if (feedback) return; // Don't allow changing answer after feedback
+    if (feedback) return;
 
     setSelectedAnswer(answer);
     const isCorrect = answer === questions[currentIndex].correctAnswer;
@@ -108,7 +116,7 @@ export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSi
   if (questions.length === 0) {
     return (
       <div className="p-4 sm:p-6 text-center">
-        <h2 className="text-xl sm:text-2xl font-bold mb-4">Multiple Choice Quiz: {set.name}</h2>
+        <h2 className="text-xl sm:text-2xl font-bold mb-4">Audio Quiz: {set.name}</h2>
         <p className="text-red-500">This set needs at least 4 words to generate a quiz.</p>
         <button onClick={onExit} className="mt-4 px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">
           Back
@@ -145,7 +153,7 @@ export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSi
   return (
     <div className="p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6">
-        <h2 className="text-xl sm:text-2xl font-bold">Multiple Choice: {set.name}</h2>
+        <h2 className="text-xl sm:text-2xl font-bold">Audio Quiz: {set.name}</h2>
         <button onClick={onExit} className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">
           Exit
         </button>
@@ -161,15 +169,19 @@ export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSi
         </div>
       </div>
       
-      <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 mb-6">
-        <p className="text-gray-600 mb-2">What is the translation of:</p>
-        <h3 className="text-4xl sm:text-5xl font-bold mb-8 text-center">{currentQuestion.question}</h3>
+      <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 mb-6 text-center">
+        <p className="text-gray-600 mb-4">Listen to the word and select the correct translation:</p>
+        <button 
+            onClick={() => speak(currentQuestion.questionWord.japanese)}
+            className="bg-blue-500 text-white rounded-full p-6 hover:bg-blue-600 transition-transform hover:scale-110 mb-8 mx-auto flex items-center justify-center"
+        >
+          <Volume2 size={48} />
+        </button>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {currentQuestion.options.map((option, index) => {
             const isCorrect = option === currentQuestion.correctAnswer;
             let buttonClass = 'bg-white border-2 border-gray-200 hover:border-blue-300';
-            
             if (feedback && selectedAnswer === option) {
               buttonClass = isCorrect ? 'bg-green-500 text-white' : 'bg-red-500 text-white';
             } else if (feedback && isCorrect) {
@@ -188,9 +200,8 @@ export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSi
             );
           })}
         </div>
-        
         {feedback && (
-          <div className="mt-6 text-lg font-bold text-center">
+          <div className="mt-6 text-lg font-bold">
             {feedback === 'correct' ? 
               <span className="text-green-600 flex items-center justify-center gap-2"><CheckCircle /> Correct!</span> : 
               <span className="text-red-600 flex items-center justify-center gap-2"><XCircle /> Incorrect!</span>

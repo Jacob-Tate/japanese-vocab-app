@@ -1,3 +1,4 @@
+// src/App.jsx
 import React, { useState, useEffect } from 'react';
 import { Book, Layers, Play } from 'lucide-react';
 import { api } from './api';
@@ -9,6 +10,7 @@ import FlashcardDrill from './components/FlashcardDrill';
 import MultipleChoiceQuiz from './components/MultipleChoiceQuiz';
 import TypingChallenge from './components/TypingChallenge';
 import MemoryPairs from './components/MemoryPairs';
+import AudioQuiz from './components/AudioQuiz';
 import PracticeSelector from './components/PracticeSelector';
 
 export default function JapaneseVocabApp() {
@@ -33,17 +35,19 @@ export default function JapaneseVocabApp() {
     setSets(allSets);
   };
 
+  const exitGame = () => {
+    setActiveGame(null);
+    setActiveSet(null);
+    setCurrentView('practice');
+  };
+
   if (activeGame === 'matching' && activeSet) {
     return (
       <MatchingGame
         set={activeSet}
         vocabulary={vocabulary}
         repetitions={gameRepetitions}
-        onExit={() => {
-          setActiveGame(null);
-          setActiveSet(null);
-          setCurrentView('practice');
-        }}
+        onExit={exitGame}
       />
     );
   }
@@ -54,11 +58,7 @@ export default function JapaneseVocabApp() {
         set={activeSet}
         vocabulary={vocabulary}
         repetitions={gameRepetitions}
-        onExit={() => {
-          setActiveGame(null);
-          setActiveSet(null);
-          setCurrentView('practice');
-        }}
+        onExit={exitGame}
       />
     );
   }
@@ -69,11 +69,7 @@ export default function JapaneseVocabApp() {
         set={activeSet}
         vocabulary={vocabulary}
         startingSide={flashcardStartingSide}
-        onExit={() => {
-          setActiveGame(null);
-          setActiveSet(null);
-          setCurrentView('practice');
-        }}
+        onExit={exitGame}
       />
     );
   }
@@ -85,11 +81,7 @@ export default function JapaneseVocabApp() {
         vocabulary={vocabulary}
         startingSide={flashcardStartingSide}
         questionCount={questionCount}
-        onExit={() => {
-          setActiveGame(null);
-          setActiveSet(null);
-          setCurrentView('practice');
-        }}
+        onExit={exitGame}
       />
     );
   }
@@ -102,11 +94,7 @@ export default function JapaneseVocabApp() {
         startingSide={flashcardStartingSide}
         questionCount={questionCount}
         romajiMode={romajiMode}
-        onExit={() => {
-          setActiveGame(null);
-          setActiveSet(null);
-          setCurrentView('practice');
-        }}
+        onExit={exitGame}
       />
     );
   }
@@ -116,11 +104,18 @@ export default function JapaneseVocabApp() {
       <MemoryPairs
         set={activeSet}
         vocabulary={vocabulary}
-        onExit={() => {
-          setActiveGame(null);
-          setActiveSet(null);
-          setCurrentView('practice');
-        }}
+        onExit={exitGame}
+      />
+    );
+  }
+
+  if (activeGame === 'audioQuiz' && activeSet) {
+    return (
+      <AudioQuiz
+        set={activeSet}
+        vocabulary={vocabulary}
+        questionCount={questionCount}
+        onExit={exitGame}
       />
     );
   }
@@ -207,6 +202,11 @@ export default function JapaneseVocabApp() {
               onStartMemory={(set) => {
                 setActiveSet(set);
                 setActiveGame('memory');
+              }}
+              onStartAudioQuiz={(set, count) => {
+                setActiveSet(set);
+                setQuestionCount(count);
+                setActiveGame('audioQuiz');
               }}
             />
           )}

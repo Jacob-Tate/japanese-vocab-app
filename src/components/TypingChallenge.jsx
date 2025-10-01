@@ -1,3 +1,4 @@
+// src/components/TypingChallenge.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { RotateCcw, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { api } from '../api';
@@ -33,7 +34,7 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
   const saveHighScoreIfNeeded = async (finalScore) => {
     if (finalScore > highScore) {
       try {
-        await api.saveHighScore(set.id, 'typing', finalScore, { questionCount, startingSide });
+        await api.saveHighScore(set.id, 'typing', finalScore, { questionCount, startingSide, romajiMode });
         setHighScore(finalScore);
       } catch (error) {
         console.error('Failed to save high score:', error);
@@ -42,17 +43,16 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
   };
 
   useEffect(() => {
-    if (inputRef.current) {
+    if (inputRef.current && !isComplete) {
       inputRef.current.focus();
     }
-  }, [currentIndex]);
+  }, [currentIndex, isComplete]);
 
   const initChallenge = () => {
     const filteredWords = vocabulary.filter(v => set.wordIds.includes(v.id));
     
-    // Create question pool - repeat words if needed to reach questionCount
     let questionPool = [...filteredWords];
-    while (questionPool.length < questionCount) {
+    while (questionPool.length > 0 && questionPool.length < questionCount) {
       questionPool = [...questionPool, ...filteredWords];
     }
     
@@ -74,55 +74,48 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
     
     if (s1 === s2) return 1;
     
-    // Levenshtein distance
-    const matrix = [];
-    for (let i = 0; i <= s1.length; i++) {
-      matrix[i] = [i];
+    const matrix = Array(s2.length + 1).fill(null).map(() => Array(s1.length + 1).fill(null));
+    for (let i = 0; i <= s1.length; i += 1) {
+      matrix[0][i] = i;
     }
-    for (let j = 0; j <= s2.length; j++) {
-      matrix[0][j] = j;
+    for (let j = 0; j <= s2.length; j += 1) {
+      matrix[j][0] = j;
     }
-    
-    for (let i = 1; i <= s1.length; i++) {
-      for (let j = 1; j <= s2.length; j++) {
-        if (s1[i - 1] === s2[j - 1]) {
-          matrix[i][j] = matrix[i - 1][j - 1];
-        } else {
-          matrix[i][j] = Math.min(
-            matrix[i - 1][j - 1] + 1,
-            matrix[i][j - 1] + 1,
-            matrix[i - 1][j] + 1
-          );
-        }
+    for (let j = 1; j <= s2.length; j += 1) {
+      for (let i = 1; i <= s1.length; i += 1) {
+        const indicator = s1[i - 1] === s2[j - 1] ? 0 : 1;
+        matrix[j][i] = Math.min(
+          matrix[j][i - 1] + 1,
+          matrix[j - 1][i] + 1,
+          matrix[j - 1][i - 1] + indicator,
+        );
       }
     }
-    
-    const distance = matrix[s1.length][s2.length];
+    const distance = matrix[s2.length][s1.length];
     const maxLength = Math.max(s1.length, s2.length);
+    if (maxLength === 0) return 1;
     return 1 - (distance / maxLength);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!userInput.trim()) return;
+    if (!userInput.trim() || feedback) return;
 
     const currentWord = words[currentIndex];
     const correctAnswer = startingSide === 'japanese' ? currentWord.english : currentWord.japanese;
     
-    // Convert romaji to hiragana if romaji mode is enabled
-    let processedInput = userInput;
+    let processedInput = userInput.trim();
     let normalizedCorrect = correctAnswer;
 
-    if (romajiMode && startingSide === 'english' && wanakana) {
-      processedInput = wanakana.toHiragana(userInput);
-      console.log(processedInput);
-      // Also convert the correct answer to hiragana for fair comparison
-      normalizedCorrect = wanakana.toHiragana(correctAnswer);
-      console.log(normalizedCorrect);
+    if (romajiMode && startingSide === 'english' && window.wanakana) {
+      processedInput = wanakana.toHiragana(processedInput, { passRomaji: true });
+      // Wanakana might produce different variants, compare against romaji too
+      const hiraganaAnswer = wanakana.toHiragana(correctAnswer, { passRomaji: true });
+      normalizedCorrect = hiraganaAnswer;
     }
-    
-    const similarity = calculateSimilarity(processedInput, normalizedCorrect);
 
+    const similarity = calculateSimilarity(processedInput, normalizedCorrect);
+    let finalScore = score;
     let points = 0;
     let feedbackType = 'wrong';
     let feedbackMessage = '';
@@ -144,11 +137,12 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
       setStreak(0);
     }
 
-    setScore(score + points);
+    finalScore += points;
+    setScore(finalScore);
     setFeedback({ type: feedbackType, message: feedbackMessage, points });
-    setResults([...results, {
+    setResults(prev => [...prev, {
       word: currentWord,
-      userAnswer: romajiMode ? `${userInput} (${processedInput})` : userInput,
+      userAnswer: romajiMode && startingSide === 'english' ? `${userInput} (${processedInput})` : userInput,
       correctAnswer,
       isCorrect: similarity === 1,
       isClose: similarity >= 0.8 && similarity < 1
@@ -161,54 +155,52 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
         setFeedback(null);
       } else {
         setIsComplete(true);
-        saveHighScoreIfNeeded(score + points);
+        saveHighScoreIfNeeded(finalScore);
       }
     }, 1500);
   };
-
-  if (words.length === 0) return <div>Loading...</div>;
+  
+  if (words.length === 0) {
+      return (
+          <div className="p-4 sm:p-6 text-center">
+              <h2 className="text-xl sm:text-2xl font-bold mb-4">Typing Challenge: {set.name}</h2>
+              <p className="text-red-500">This set has no words to practice.</p>
+              <button onClick={onExit} className="mt-4 px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">
+                  Back
+              </button>
+          </div>
+      );
+  }
 
   const currentWord = words[currentIndex];
   const progress = ((currentIndex + 1) / words.length) * 100;
-  const correctCount = results.filter(r => r.isCorrect).length;
-  const closeCount = results.filter(r => r.isClose).length;
 
   if (isComplete) {
+    const correctCount = results.filter(r => r.isCorrect).length;
+    const closeCount = results.filter(r => r.isClose).length;
     const percentage = Math.round((correctCount / words.length) * 100);
     
     return (
       <div className="p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6">
           <h2 className="text-xl sm:text-2xl font-bold">Typing Challenge Results</h2>
-          <button
-            onClick={onExit}
-            className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 w-full sm:w-auto"
-          >
-            Exit
-          </button>
+          <button onClick={onExit} className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Exit</button>
         </div>
 
         <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 mb-6 text-center">
           <h3 className="text-2xl sm:text-3xl font-bold mb-4">Challenge Complete!</h3>
-          
           <div className="text-5xl font-bold text-blue-600 mb-2">{percentage}%</div>
           <p className="text-xl mb-2">Final Score: <span className="font-bold text-green-600">{score}</span></p>
-          {highScore > 0 && score < highScore && (
+          {score > highScore ?
+            <p className="text-yellow-600 font-bold mb-2">🏆 New High Score!</p> :
             <p className="text-sm text-gray-600 mb-2">(Best: {highScore})</p>
-          )}
-          {score === highScore && score > 0 && (
-            <p className="text-yellow-600 font-bold mb-2">🏆 New High Score!</p>
-          )}
+          }
           <div className="flex justify-center gap-4 text-sm mb-6">
             <span className="text-green-600">✓ {correctCount} Perfect</span>
             <span className="text-yellow-600">~ {closeCount} Close</span>
             <span className="text-red-600">✗ {words.length - correctCount - closeCount} Wrong</span>
           </div>
-
-          <button
-            onClick={initChallenge}
-            className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 flex items-center gap-2 mx-auto"
-          >
+          <button onClick={initChallenge} className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 flex items-center gap-2 mx-auto">
             <RotateCcw size={20} /> Try Again
           </button>
         </div>
@@ -221,25 +213,11 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
                 result.isCorrect ? 'bg-green-50' : result.isClose ? 'bg-yellow-50' : 'bg-red-50'
               }`}>
                 <div className="flex items-start gap-2">
-                  {result.isCorrect ? (
-                    <CheckCircle className="text-green-600 flex-shrink-0" size={20} />
-                  ) : result.isClose ? (
-                    <AlertCircle className="text-yellow-600 flex-shrink-0" size={20} />
-                  ) : (
-                    <XCircle className="text-red-600 flex-shrink-0" size={20} />
-                  )}
+                  {result.isCorrect ? <CheckCircle className="text-green-600 flex-shrink-0 mt-1" size={20} /> : result.isClose ? <AlertCircle className="text-yellow-600 flex-shrink-0 mt-1" size={20} /> : <XCircle className="text-red-600 flex-shrink-0 mt-1" size={20} />}
                   <div className="flex-1 text-sm">
-                    <div className="font-medium">
-                      {startingSide === 'japanese' ? result.word.japanese : result.word.english}
-                    </div>
-                    <div className="text-gray-600">
-                      Your answer: <span className={result.isCorrect || result.isClose ? 'text-green-700' : 'text-red-700'}>{result.userAnswer}</span>
-                    </div>
-                    {!result.isCorrect && (
-                      <div className="text-green-700">
-                        Correct: {result.correctAnswer}
-                      </div>
-                    )}
+                    <div className="font-medium">{startingSide === 'japanese' ? result.word.japanese : result.word.english}</div>
+                    <div className="text-gray-600">Your answer: <span className={result.isCorrect || result.isClose ? 'text-green-700' : 'text-red-700'}>{result.userAnswer}</span></div>
+                    {!result.isCorrect && <div className="text-green-700">Correct: {result.correctAnswer}</div>}
                   </div>
                 </div>
               </div>
@@ -254,88 +232,29 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
     <div className="p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6">
         <h2 className="text-xl sm:text-2xl font-bold">Typing Challenge: {set.name}</h2>
-        <button
-          onClick={onExit}
-          className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 w-full sm:w-auto"
-        >
-          Exit
-        </button>
+        <button onClick={onExit} className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Exit</button>
       </div>
 
       <div className="mb-4">
         <div className="flex justify-between text-xs sm:text-sm text-gray-600 mb-2">
           <span>Word {currentIndex + 1} of {words.length}</span>
-          <div className="flex gap-4">
-            <span>Score: {score}</span>
-            {streak > 0 && <span className="text-orange-600">🔥 Streak: {streak}</span>}
-          </div>
+          <div className="flex gap-4"><span>Score: {score}</span>{streak > 0 && <span className="text-orange-600">🔥 Streak: {streak}</span>}</div>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <div
-            className="bg-blue-500 h-2 rounded-full transition-all"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
+        <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${progress}%` }}/></div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 mb-6">
         <p className="text-sm text-gray-500 mb-2">
           Type the {startingSide === 'japanese' ? 'English' : 'Japanese'} translation:
-          {romajiMode && startingSide === 'english' && (
-            <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-semibold">
-              ROMAJI MODE
-            </span>
-          )}
+          {romajiMode && startingSide === 'english' && <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-semibold">ROMAJI MODE</span>}
         </p>
-        <h3 className="text-4xl sm:text-5xl font-bold mb-8 text-center">
-          {startingSide === 'japanese' ? currentWord.japanese : currentWord.english}
-        </h3>
+        <h3 className="text-4xl sm:text-5xl font-bold mb-8 text-center">{startingSide === 'japanese' ? currentWord.japanese : currentWord.english}</h3>
 
         <form onSubmit={handleSubmit}>
-          <input
-            ref={inputRef}
-            type="text"
-            value={userInput}
-            onChange={(e) => setUserInput(e.target.value)}
-            disabled={feedback !== null}
-            className="w-full px-4 py-3 text-xl border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2 text-center"
-            placeholder={romajiMode ? "Type in romaji..." : "Type your answer..."}
-            autoComplete="off"
-          />
-          
-          {romajiMode && startingSide === 'english' && userInput && wanakana && (
-            <div className="text-center mb-4 text-gray-600">
-              <span className="text-sm">Converts to: </span>
-              <span className="text-2xl font-bold text-blue-600">
-                {wanakana.toHiragana(userInput)}
-              </span>
-            </div>
-          )}
-
-          {feedback && (
-            <div className={`p-4 rounded-lg mb-4 text-center ${
-              feedback.type === 'correct' ? 'bg-green-100 text-green-800' :
-              feedback.type === 'close' ? 'bg-yellow-100 text-yellow-800' :
-              'bg-red-100 text-red-800'
-            }`}>
-              <div className="font-bold text-lg mb-1">
-                {feedback.type === 'correct' && '✓ '}
-                {feedback.type === 'close' && '~ '}
-                {feedback.type === 'wrong' && '✗ '}
-                {feedback.message}
-              </div>
-              {feedback.points > 0 && <div>+{feedback.points} points!</div>}
-            </div>
-          )}
-
-          {!feedback && (
-            <button
-              type="submit"
-              className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 font-semibold"
-            >
-              Submit
-            </button>
-          )}
+          <input ref={inputRef} type="text" value={userInput} onChange={(e) => setUserInput(e.target.value)} disabled={!!feedback} className="w-full px-4 py-3 text-xl border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2 text-center" placeholder={romajiMode && startingSide === 'english' ? "Type in romaji..." : "Type your answer..."} autoComplete="off"/>
+          {romajiMode && startingSide === 'english' && userInput && window.wanakana && <div className="text-center mb-4 text-gray-600"><span className="text-sm">Converts to: </span><span className="text-2xl font-bold text-blue-600">{wanakana.toHiragana(userInput, { passRomaji: true })}</span></div>}
+          {feedback && <div className={`p-4 rounded-lg mb-4 text-center ${feedback.type === 'correct' ? 'bg-green-100 text-green-800' : feedback.type === 'close' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}><div className="font-bold text-lg mb-1">{feedback.type === 'correct' && '✓ '}{feedback.type === 'close' && '~ '}{feedback.type === 'wrong' && '✗ '}{feedback.message}</div>{feedback.points > 0 && <div>+{feedback.points} points!</div>}</div>}
+          {!feedback && <button type="submit" className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 font-semibold">Submit</button>}
         </form>
       </div>
     </div>

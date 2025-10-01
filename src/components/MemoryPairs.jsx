@@ -1,5 +1,7 @@
+// src/components/MemoryPairs.jsx
 import React, { useState, useEffect } from 'react';
 import { RotateCcw, Trophy } from 'lucide-react';
+import { api } from '../api';
 
 export default function MemoryPairs({ set, vocabulary, onExit }) {
   const [cards, setCards] = useState([]);
@@ -14,10 +16,51 @@ export default function MemoryPairs({ set, vocabulary, onExit }) {
     initGame();
   }, [gridSize]);
 
+  useEffect(() => {
+    loadHighScore();
+  }, [gridSize, set.id]);
+
+
+  const loadHighScore = async () => {
+    try {
+      const result = await api.getHighScore(set.id, 'memory');
+      if (result) {
+        const metadata = result.metadata ? JSON.parse(result.metadata) : {};
+        if (metadata.gridSize === gridSize) {
+          setBestScore(result.score);
+        } else {
+          setBestScore(null);
+        }
+      } else {
+        setBestScore(null);
+      }
+    } catch (error) {
+      console.error('Failed to load high score:', error);
+      setBestScore(null);
+    }
+  };
+
+  const saveHighScoreIfNeeded = async (finalMoves) => {
+    if (!bestScore || finalMoves < bestScore) {
+      try {
+        await api.saveHighScore(set.id, 'memory', finalMoves, { gridSize });
+        setBestScore(finalMoves);
+      } catch (error) {
+        console.error('Failed to save high score:', error);
+      }
+    }
+  };
+
   const initGame = () => {
     const words = vocabulary.filter(v => set.wordIds.includes(v.id));
     const pairsNeeded = (gridSize * gridSize) / 2;
-    const selectedWords = words.slice(0, pairsNeeded);
+    
+    if (words.length < pairsNeeded) {
+        setCards([]); // Not enough words
+        return;
+    }
+    
+    const selectedWords = [...words].sort(() => 0.5 - Math.random()).slice(0, pairsNeeded);
 
     const gameCards = [];
     selectedWords.forEach((word, index) => {
@@ -58,12 +101,12 @@ export default function MemoryPairs({ set, vocabulary, onExit }) {
     setFlippedCards(newFlipped);
 
     if (newFlipped.length === 2) {
-      setMoves(moves + 1);
+      const currentMoves = moves + 1;
+      setMoves(currentMoves);
       const card1 = cards.find(c => c.id === newFlipped[0]);
       const card2 = cards.find(c => c.id === newFlipped[1]);
 
       if (card1.pairId === card2.pairId) {
-        // Match found!
         setTimeout(() => {
           const newMatched = [...matchedCards, ...newFlipped];
           setMatchedCards(newMatched);
@@ -71,13 +114,10 @@ export default function MemoryPairs({ set, vocabulary, onExit }) {
 
           if (newMatched.length === cards.length) {
             setIsComplete(true);
-            if (!bestScore || moves + 1 < bestScore) {
-              setBestScore(moves + 1);
-            }
+            saveHighScoreIfNeeded(currentMoves);
           }
         }, 500);
       } else {
-        // No match
         setTimeout(() => {
           setFlippedCards([]);
         }, 1000);
@@ -92,6 +132,23 @@ export default function MemoryPairs({ set, vocabulary, onExit }) {
   const isCardMatched = (cardId) => {
     return matchedCards.includes(cardId);
   };
+  
+  const pairsNeeded = (gridSize * gridSize) / 2;
+  const hasEnoughWords = vocabulary.filter(v => set.wordIds.includes(v.id)).length >= pairsNeeded;
+
+  if (!hasEnoughWords) {
+    return (
+        <div className="p-4 sm:p-6 text-center">
+            <h2 className="text-xl sm:text-2xl font-bold mb-4">Memory Pairs: {set.name}</h2>
+            <p className="text-red-500">
+                This set needs at least {pairsNeeded} words for a {gridSize}x{gridSize} grid.
+            </p>
+            <button onClick={onExit} className="mt-4 px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">
+                Back
+            </button>
+        </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6">
@@ -111,7 +168,7 @@ export default function MemoryPairs({ set, vocabulary, onExit }) {
             <span className="text-sm text-gray-600">Moves: </span>
             <span className="font-bold text-blue-600">{moves}</span>
           </div>
-          {bestScore && (
+          {bestScore !== null && (
             <div className="bg-white rounded-lg px-4 py-2 shadow flex items-center gap-2">
               <Trophy size={20} className="text-yellow-500" />
               <span className="text-sm text-gray-600">Best: </span>
