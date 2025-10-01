@@ -1,0 +1,191 @@
+import React, { useState, useEffect } from 'react';
+import { RotateCcw, Trophy } from 'lucide-react';
+
+export default function MemoryPairs({ set, vocabulary, onExit }) {
+  const [cards, setCards] = useState([]);
+  const [flippedCards, setFlippedCards] = useState([]);
+  const [matchedCards, setMatchedCards] = useState([]);
+  const [moves, setMoves] = useState(0);
+  const [isComplete, setIsComplete] = useState(false);
+  const [gridSize, setGridSize] = useState(4);
+  const [bestScore, setBestScore] = useState(null);
+
+  useEffect(() => {
+    initGame();
+  }, [gridSize]);
+
+  const initGame = () => {
+    const words = vocabulary.filter(v => set.wordIds.includes(v.id));
+    const pairsNeeded = (gridSize * gridSize) / 2;
+    const selectedWords = words.slice(0, pairsNeeded);
+
+    const gameCards = [];
+    selectedWords.forEach((word, index) => {
+      gameCards.push({
+        id: `${index}-jp`,
+        pairId: index,
+        text: word.japanese,
+        type: 'japanese',
+        matched: false
+      });
+      gameCards.push({
+        id: `${index}-en`,
+        pairId: index,
+        text: word.english,
+        type: 'english',
+        matched: false
+      });
+    });
+
+    const shuffled = gameCards.sort(() => Math.random() - 0.5);
+    setCards(shuffled);
+    setFlippedCards([]);
+    setMatchedCards([]);
+    setMoves(0);
+    setIsComplete(false);
+  };
+
+  const handleCardClick = (cardId) => {
+    if (
+      flippedCards.length >= 2 ||
+      flippedCards.includes(cardId) ||
+      matchedCards.includes(cardId)
+    ) {
+      return;
+    }
+
+    const newFlipped = [...flippedCards, cardId];
+    setFlippedCards(newFlipped);
+
+    if (newFlipped.length === 2) {
+      setMoves(moves + 1);
+      const card1 = cards.find(c => c.id === newFlipped[0]);
+      const card2 = cards.find(c => c.id === newFlipped[1]);
+
+      if (card1.pairId === card2.pairId) {
+        // Match found!
+        setTimeout(() => {
+          const newMatched = [...matchedCards, ...newFlipped];
+          setMatchedCards(newMatched);
+          setFlippedCards([]);
+
+          if (newMatched.length === cards.length) {
+            setIsComplete(true);
+            if (!bestScore || moves + 1 < bestScore) {
+              setBestScore(moves + 1);
+            }
+          }
+        }, 500);
+      } else {
+        // No match
+        setTimeout(() => {
+          setFlippedCards([]);
+        }, 1000);
+      }
+    }
+  };
+
+  const isCardFlipped = (cardId) => {
+    return flippedCards.includes(cardId) || matchedCards.includes(cardId);
+  };
+
+  const isCardMatched = (cardId) => {
+    return matchedCards.includes(cardId);
+  };
+
+  return (
+    <div className="p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6">
+        <h2 className="text-xl sm:text-2xl font-bold">Memory Pairs: {set.name}</h2>
+        <button
+          onClick={onExit}
+          className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 w-full sm:w-auto"
+        >
+          Exit
+        </button>
+      </div>
+
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+        <div className="flex gap-4">
+          <div className="bg-white rounded-lg px-4 py-2 shadow">
+            <span className="text-sm text-gray-600">Moves: </span>
+            <span className="font-bold text-blue-600">{moves}</span>
+          </div>
+          {bestScore && (
+            <div className="bg-white rounded-lg px-4 py-2 shadow flex items-center gap-2">
+              <Trophy size={20} className="text-yellow-500" />
+              <span className="text-sm text-gray-600">Best: </span>
+              <span className="font-bold text-purple-600">{bestScore}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => setGridSize(4)}
+            className={`px-3 py-1 rounded ${gridSize === 4 ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+          >
+            4×4
+          </button>
+          <button
+            onClick={() => setGridSize(6)}
+            className={`px-3 py-1 rounded ${gridSize === 6 ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+          >
+            6×6
+          </button>
+        </div>
+      </div>
+
+      {isComplete ? (
+        <div className="bg-gradient-to-br from-green-100 to-blue-100 border-2 border-green-500 rounded-lg p-6 sm:p-8 text-center">
+          <h3 className="text-2xl sm:text-3xl font-bold text-green-700 mb-4">🎉 Complete!</h3>
+          <p className="text-xl mb-2">Total Moves: <span className="font-bold">{moves}</span></p>
+          {moves === bestScore && (
+            <p className="text-yellow-600 font-bold mb-4">🏆 New Best Score!</p>
+          )}
+          <button
+            onClick={initGame}
+            className="bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 flex items-center gap-2 mx-auto"
+          >
+            <RotateCcw size={20} /> Play Again
+          </button>
+        </div>
+      ) : (
+        <div 
+          className={`grid gap-2 sm:gap-3 mx-auto max-w-4xl`}
+          style={{ 
+            gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
+          }}
+        >
+          {cards.map((card) => (
+            <button
+              key={card.id}
+              onClick={() => handleCardClick(card.id)}
+              disabled={isCardFlipped(card.id)}
+              className={`aspect-square rounded-lg transition-all duration-300 transform ${
+                isCardFlipped(card.id)
+                  ? isCardMatched(card.id)
+                    ? 'bg-green-500 text-white scale-95'
+                    : 'bg-blue-500 text-white'
+                  : 'bg-gradient-to-br from-purple-400 to-blue-400 hover:scale-105 shadow-lg'
+              } flex items-center justify-center font-bold text-xs sm:text-sm md:text-base p-2 cursor-pointer`}
+              style={{
+                height: gridSize === 6 ? 'auto' : 'auto'
+              }}
+            >
+              {isCardFlipped(card.id) ? (
+                <span className="text-center break-words">{card.text}</span>
+              ) : (
+                <span className="text-4xl sm:text-5xl">?</span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-6 text-center text-sm text-gray-600">
+        <p>Click cards to flip them. Match Japanese words with their English translations!</p>
+      </div>
+    </div>
+  );
+}

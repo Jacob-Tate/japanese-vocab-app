@@ -4,7 +4,11 @@ import { api } from './api';
 import VocabularyManager from './components/VocabularyManager';
 import SetManager from './components/SetManager';
 import MatchingGame from './components/MatchingGame';
+import SpeedMatch from './components/SpeedMatch';
 import FlashcardDrill from './components/FlashcardDrill';
+import MultipleChoiceQuiz from './components/MultipleChoiceQuiz';
+import TypingChallenge from './components/TypingChallenge';
+import MemoryPairs from './components/MemoryPairs';
 import PracticeSelector from './components/PracticeSelector';
 
 export default function JapaneseVocabApp() {
@@ -15,6 +19,7 @@ export default function JapaneseVocabApp() {
   const [activeSet, setActiveSet] = useState(null);
   const [gameRepetitions, setGameRepetitions] = useState(3);
   const [flashcardStartingSide, setFlashcardStartingSide] = useState('japanese');
+  const [questionCount, setQuestionCount] = useState(10);
 
   useEffect(() => {
     loadData();
@@ -42,12 +47,73 @@ export default function JapaneseVocabApp() {
     );
   }
 
+  if (activeGame === 'speedmatch' && activeSet) {
+    return (
+      <SpeedMatch
+        set={activeSet}
+        vocabulary={vocabulary}
+        repetitions={gameRepetitions}
+        onExit={() => {
+          setActiveGame(null);
+          setActiveSet(null);
+          setCurrentView('practice');
+        }}
+      />
+    );
+  }
+
   if (activeGame === 'flashcard' && activeSet) {
     return (
       <FlashcardDrill
         set={activeSet}
         vocabulary={vocabulary}
         startingSide={flashcardStartingSide}
+        onExit={() => {
+          setActiveGame(null);
+          setActiveSet(null);
+          setCurrentView('practice');
+        }}
+      />
+    );
+  }
+
+  if (activeGame === 'quiz' && activeSet) {
+    return (
+      <MultipleChoiceQuiz
+        set={activeSet}
+        vocabulary={vocabulary}
+        startingSide={flashcardStartingSide}
+        questionCount={questionCount}
+        onExit={() => {
+          setActiveGame(null);
+          setActiveSet(null);
+          setCurrentView('practice');
+        }}
+      />
+    );
+  }
+
+  if (activeGame === 'typing' && activeSet) {
+    return (
+      <TypingChallenge
+        set={activeSet}
+        vocabulary={vocabulary}
+        startingSide={flashcardStartingSide}
+        questionCount={questionCount}
+        onExit={() => {
+          setActiveGame(null);
+          setActiveSet(null);
+          setCurrentView('practice');
+        }}
+      />
+    );
+  }
+
+  if (activeGame === 'memory' && activeSet) {
+    return (
+      <MemoryPairs
+        set={activeSet}
+        vocabulary={vocabulary}
         onExit={() => {
           setActiveGame(null);
           setActiveSet(null);
@@ -113,10 +179,31 @@ export default function JapaneseVocabApp() {
                 setGameRepetitions(reps);
                 setActiveGame('matching');
               }}
+              onStartSpeedMatch={(set, reps) => {
+                setActiveSet(set);
+                setGameRepetitions(reps);
+                setActiveGame('speedmatch');
+              }}
               onStartFlashcard={(set, side) => {
                 setActiveSet(set);
                 setFlashcardStartingSide(side);
                 setActiveGame('flashcard');
+              }}
+              onStartQuiz={(set, side, count) => {
+                setActiveSet(set);
+                setFlashcardStartingSide(side);
+                setQuestionCount(count);
+                setActiveGame('quiz');
+              }}
+              onStartTyping={(set, side, count) => {
+                setActiveSet(set);
+                setFlashcardStartingSide(side);
+                setQuestionCount(count);
+                setActiveGame('typing');
+              }}
+              onStartMemory={(set) => {
+                setActiveSet(set);
+                setActiveGame('memory');
               }}
             />
           )}
