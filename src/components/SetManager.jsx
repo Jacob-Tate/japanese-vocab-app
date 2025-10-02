@@ -43,7 +43,7 @@ export default function SetManager({ vocabulary, sentences, sets, onRefresh }) {
       onRefresh();
     }
   };
-  
+    
   const resetForm = () => {
     setSetName('');
     setSelectedWords([]);
@@ -66,30 +66,30 @@ export default function SetManager({ vocabulary, sentences, sets, onRefresh }) {
 
   return (
     <div className="p-4 sm:p-6">
-      <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Manage Sets</h2>
+      <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 dark:text-white">Manage Sets</h2>
 
-      <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
-        <h3 className="text-base sm:text-lg font-semibold mb-4">{editingSet ? 'Edit Set' : 'Create New Set'}</h3>
-        {editingSet && <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg"><p className="text-sm text-blue-800">Editing: <span className="font-semibold">{editingSet.name}</span></p></div>}
-        <input type="text" placeholder="Set Name" value={setName} onChange={(e) => setSetName(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4"/>
-        
+      <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+        <h3 className="text-base sm:text-lg font-semibold mb-4 dark:text-white">{editingSet ? 'Edit Set' : 'Create New Set'}</h3>
+        {editingSet && <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 rounded-lg"><p className="text-sm text-blue-800 dark:text-blue-200">Editing: <span className="font-semibold">{editingSet.name}</span></p></div>}
+        <input type="text" placeholder="Set Name" value={setName} onChange={(e) => setSetName(e.target.value)} className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg mb-4 dark:bg-gray-600 dark:text-white dark:placeholder-gray-400"/>
+                
         <div className="mb-4">
           <div className="relative mb-2">
-            <Search className="absolute left-3 top-3 text-gray-400" size={20} />
-            <input type="text" placeholder="Search content..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg"/>
+            <Search className="absolute left-3 top-3 text-gray-400 dark:text-gray-500" size={20} />
+            <input type="text" placeholder="Search content..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-600 dark:text-white dark:placeholder-gray-400"/>
           </div>
-          
+                    
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div>
-              <p className="text-sm text-gray-600 mb-2">Select words ({selectedWords.length} selected):</p>
-              <div className="max-h-64 overflow-y-auto border rounded-lg p-2">
-                {filteredVocabulary.map(w => <label key={`w-${w.id}`} className="flex items-center gap-3 p-2 hover:bg-gray-50 cursor-pointer rounded"><input type="checkbox" checked={selectedWords.includes(w.id)} onChange={() => toggleWord(w.id)} className="w-4 h-4"/><span className="font-medium">{w.japanese}</span><span className="text-gray-600">- {w.english}</span></label>)}
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Select words ({selectedWords.length} selected):</p>
+              <div className="max-h-64 overflow-y-auto border dark:border-gray-600 rounded-lg p-2 bg-white dark:bg-gray-600">
+                {filteredVocabulary.map(w => <label key={`w-${w.id}`} className="flex items-center gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-500 cursor-pointer rounded"><input type="checkbox" checked={selectedWords.includes(w.id)} onChange={() => toggleWord(w.id)} className="w-4 h-4"/><span className="font-medium dark:text-white">{w.japanese}</span><span className="text-gray-600 dark:text-gray-300">- {w.english}</span></label>)}
               </div>
             </div>
             <div>
-              <p className="text-sm text-gray-600 mb-2">Select sentences ({selectedSentences.length} selected):</p>
-              <div className="max-h-64 overflow-y-auto border rounded-lg p-2">
-                {filteredSentences.map(s => <label key={`s-${s.id}`} className="flex items-start gap-3 p-2 hover:bg-gray-50 cursor-pointer rounded"><input type="checkbox" checked={selectedSentences.includes(s.id)} onChange={() => toggleSentence(s.id)} className="w-4 h-4 mt-1 flex-shrink-0"/><div><div className="font-medium">{s.japanese}</div><div className="text-xs text-gray-500">{s.english}</div></div></label>)}
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Select sentences ({selectedSentences.length} selected):</p>
+              <div className="max-h-64 overflow-y-auto border dark:border-gray-600 rounded-lg p-2 bg-white dark:bg-gray-600">
+                {filteredSentences.map(s => <label key={`s-${s.id}`} className="flex items-start gap-3 p-2 hover:bg-gray-50 dark:hover:bg-gray-500 cursor-pointer rounded"><input type="checkbox" checked={selectedSentences.includes(s.id)} onChange={() => toggleSentence(s.id)} className="w-4 h-4 mt-1 flex-shrink-0"/><div><div className="font-medium dark:text-white">{s.japanese}</div><div className="text-xs text-gray-500 dark:text-gray-400">{s.english}</div></div></label>)}
               </div>
             </div>
           </div>
@@ -97,27 +97,27 @@ export default function SetManager({ vocabulary, sentences, sets, onRefresh }) {
 
         {editingSet ? (
           <div className="flex gap-3">
-            <button onClick={handleUpdateSet} disabled={!setName.trim() || (selectedWords.length === 0 && selectedSentences.length === 0)} className="flex-1 bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-300 flex items-center justify-center gap-2"><Check size={20} /> Update Set</button>
-            <button onClick={handleCancelEdit} className="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 flex items-center gap-2"><X size={20} /> Cancel</button>
+            <button onClick={handleUpdateSet} disabled={!setName.trim() || (selectedWords.length === 0 && selectedSentences.length === 0)} className="flex-1 bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-300 dark:disabled:bg-gray-600 flex items-center justify-center gap-2"><Check size={20} /> Update Set</button>
+            <button onClick={handleCancelEdit} className="px-6 py-2 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 flex items-center gap-2"><X size={20} /> Cancel</button>
           </div>
         ) : (
-          <button onClick={handleCreateSet} disabled={!setName.trim() || (selectedWords.length === 0 && selectedSentences.length === 0)} className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-300 flex items-center gap-2"><Plus size={20} /> Create Set</button>
+          <button onClick={handleCreateSet} disabled={!setName.trim() || (selectedWords.length === 0 && selectedSentences.length === 0)} className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-300 dark:disabled:bg-gray-600 flex items-center gap-2"><Plus size={20} /> Create Set</button>
         )}
-        {showSuccess && <div className="mt-4 text-green-600 flex items-center gap-2"><Check size={20} /> {editingSet ? 'Set updated successfully!' : 'Set created successfully!'}</div>}
+        {showSuccess && <div className="mt-4 text-green-600 dark:text-green-400 flex items-center gap-2"><Check size={20} /> {editingSet ? 'Set updated successfully!' : 'Set created successfully!'}</div>}
       </div>
 
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h3 className="text-lg font-semibold mb-4">Your Sets ({sets.length})</h3>
+      <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-6">
+        <h3 className="text-lg font-semibold mb-4 dark:text-white">Your Sets ({sets.length})</h3>
         <div className="space-y-3">
           {sets.map((set) => (
-            <div key={set.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+            <div key={set.id} className="flex items-center justify-between p-4 border dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600">
               <div>
-                <h4 className="font-semibold">{set.name}</h4>
-                <p className="text-sm text-gray-600">{set.wordIds.length} words, {set.sentenceIds.length} sentences</p>
+                <h4 className="font-semibold dark:text-white">{set.name}</h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400">{set.wordIds.length} words, {set.sentenceIds.length} sentences</p>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => handleEditSet(set)} className="text-blue-500 hover:text-blue-700 p-2" title="Edit set"><Edit size={20} /></button>
-                <button onClick={() => handleDeleteSet(set.id)} className="text-red-500 hover:text-red-700 p-2" title="Delete set"><X size={20} /></button>
+                <button onClick={() => handleEditSet(set)} className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 p-2" title="Edit set"><Edit size={20} /></button>
+                <button onClick={() => handleDeleteSet(set.id)} className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-2" title="Delete set"><X size={20} /></button>
               </div>
             </div>
           ))}

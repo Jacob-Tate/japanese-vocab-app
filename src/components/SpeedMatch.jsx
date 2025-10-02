@@ -67,14 +67,14 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
 
   const initGame = () => {
     const words = vocabulary.filter(v => set.wordIds.includes(v.id));
-        
+            
     const expanded = [];
     words.forEach(word => {
       for (let i = 0; i < repetitions; i++) {
         expanded.push({ ...word, instanceId: `${word.id}-${i}` });
       }
     });
-        
+            
     setGameWords(expanded);
     setMatched([]);
     setGrayedOut([]);
@@ -88,7 +88,7 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
 
   const loadNextPairs = (wordsPool, currentMatched) => {
     const available = wordsPool.filter(w => !currentMatched.includes(w.instanceId));
-        
+            
     if (available.length === 0) {
       return;
     }
@@ -96,7 +96,7 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
     const shuffledAvailable = [...available].sort(() => Math.random() - 0.5);
     const uniqueWords = [];
     const seenIds = new Set();
-        
+            
     for (const word of shuffledAvailable) {
       if (!seenIds.has(word.id)) {
         seenIds.add(word.id);
@@ -104,13 +104,13 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
         if (uniqueWords.length >= 5) break;
       }
     }
-        
+            
     const newLeftItems = uniqueWords.map(w => ({
       instanceId: w.instanceId,
       text: w.japanese,
       id: w.id
     }));
-        
+            
     const newRightItems = uniqueWords.map(w => ({
       instanceId: w.instanceId,
       text: w.english,
@@ -147,17 +147,17 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
       const speedBonus = timeLeft > 45 ? 5 : timeLeft > 30 ? 3 : 0;
       const points = (basePoints + speedBonus) * comboMultiplier;
       const newScore = score + points;
-            
+                  
       setMatched(newMatched);
       setCombo(newCombo);
       setScore(newScore);
-            
+                  
       const available = gameWords.filter(w => !newMatched.includes(w.instanceId));
-            
+                  
       setTimeout(() => {
         setSelectedLeft(null);
         setSelectedRight(null);
-                
+                        
         if (available.length === 0) {
           setLeftItems([]);
           setRightItems([]);
@@ -166,37 +166,37 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
           saveGameCompletion(newScore);
           return;
         }
-                
+                        
         setGrayedOut(newGrayedOut);
-                
+                        
         if (newGrayedOut.length >= 6) {
           const remainingLeft = leftItems.filter(i => !newGrayedOut.includes(i.instanceId));
           const remainingRight = rightItems.filter(i => !newGrayedOut.includes(i.instanceId));
-                    
+                              
           const shuffledAvailable = [...available].sort(() => Math.random() - 0.5);
           const currentWordIds = new Set([...remainingLeft, ...remainingRight].map(item => item.id));
           const newWords = [];
           const newWordIds = new Set();
-                    
+                              
           for (const word of shuffledAvailable) {
             if (!currentWordIds.has(word.id) && !newWordIds.has(word.id) && newWords.length < 3) {
               newWords.push(word);
               newWordIds.add(word.id);
             }
           }
-                    
+                              
           const newLeftItems = newWords.map(w => ({
             instanceId: w.instanceId,
             text: w.japanese,
             id: w.id
           }));
-                    
+                              
           const newRightItems = newWords.map(w => ({
             instanceId: w.instanceId,
             text: w.english,
             id: w.id
           }));
-                    
+                              
           setLeftItems([...remainingLeft, ...newLeftItems].sort(() => Math.random() - 0.5));
           setRightItems([...remainingRight, ...newRightItems].sort(() => Math.random() - 0.5));
           setGrayedOut([]);
@@ -217,40 +217,40 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
   const isGameComplete = matched.length === gameWords.length * 2 || timeLeft === 0;
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6">
-        <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+        <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2 dark:text-white">
           <Zap className="text-yellow-500" size={28} />
           Speed Match: {set.name}
         </h2>
         <button
           onClick={onExit}
-          className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 w-full sm:w-auto"
+          className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 w-full sm:w-auto"
         >
           Exit
         </button>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4">
-        <div className="bg-white rounded-lg p-3 sm:p-4 text-center shadow">
-          <div className="text-xs sm:text-sm text-gray-600">Time</div>
-          <div className={`text-2xl sm:text-3xl font-bold ${timeLeft <= 10 ? 'text-red-500' : 'text-blue-600'}`}>
+        <div className="bg-white dark:bg-gray-700 rounded-lg p-3 sm:p-4 text-center shadow">
+          <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Time</div>
+          <div className={`text-2xl sm:text-3xl font-bold ${timeLeft <= 10 ? 'text-red-500' : 'text-blue-600 dark:text-blue-400'}`}>
             {timeLeft}s
           </div>
         </div>
-        <div className="bg-white rounded-lg p-3 sm:p-4 text-center shadow">
-          <div className="text-xs sm:text-sm text-gray-600">Score</div>
-          <div className="text-2xl sm:text-3xl font-bold text-green-600">{score}</div>
+        <div className="bg-white dark:bg-gray-700 rounded-lg p-3 sm:p-4 text-center shadow">
+          <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Score</div>
+          <div className="text-2xl sm:text-3xl font-bold text-green-600 dark:text-green-400">{score}</div>
         </div>
-        <div className="bg-white rounded-lg p-3 sm:p-4 text-center shadow">
-          <div className="text-xs sm:text-sm text-gray-600">Combo</div>
-          <div className="text-2xl sm:text-3xl font-bold text-orange-600">
+        <div className="bg-white dark:bg-gray-700 rounded-lg p-3 sm:p-4 text-center shadow">
+          <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Combo</div>
+          <div className="text-2xl sm:text-3xl font-bold text-orange-600 dark:text-orange-400">
             {combo > 0 && '🔥'} x{combo}
           </div>
         </div>
-        <div className="bg-white rounded-lg p-3 sm:p-4 text-center shadow">
-          <div className="text-xs sm:text-sm text-gray-600">Best</div>
-          <div className="text-2xl sm:text-3xl font-bold text-purple-600 flex items-center justify-center gap-1">
+        <div className="bg-white dark:bg-gray-700 rounded-lg p-3 sm:p-4 text-center shadow">
+          <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Best</div>
+          <div className="text-2xl sm:text-3xl font-bold text-purple-600 dark:text-purple-400 flex items-center justify-center gap-1">
             <Trophy size={20} />
             {highScore}
           </div>
@@ -258,14 +258,14 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
       </div>
 
       {isGameComplete ? (
-        <div className="bg-gradient-to-br from-purple-100 to-blue-100 border-2 border-purple-500 rounded-lg p-6 sm:p-8 text-center">
-          <h3 className="text-2xl sm:text-3xl font-bold text-purple-700 mb-4">
+        <div className="bg-gradient-to-br from-purple-100 to-blue-100 dark:from-purple-900 dark:to-blue-900 border-2 border-purple-500 dark:border-purple-600 rounded-lg p-6 sm:p-8 text-center">
+          <h3 className="text-2xl sm:text-3xl font-bold text-purple-700 dark:text-purple-300 mb-4">
             {timeLeft === 0 ? '⏰ Time\'s Up!' : '🎉 Complete!'}
           </h3>
-          <p className="text-xl sm:text-2xl mb-2">Final Score: <span className="font-bold text-green-600">{score}</span></p>
-          <p className="text-base sm:text-lg mb-4">Matches: {matched.length / 2}</p>
+          <p className="text-xl sm:text-2xl mb-2 dark:text-white">Final Score: <span className="font-bold text-green-600 dark:text-green-400">{score}</span></p>
+          <p className="text-base sm:text-lg mb-4 dark:text-gray-300">Matches: {matched.length / 2}</p>
           {isNewHighScore && (
-            <p className="text-yellow-600 font-bold mb-4 flex items-center justify-center gap-2">
+            <p className="text-yellow-600 dark:text-yellow-400 font-bold mb-4 flex items-center justify-center gap-2">
               <Trophy size={24} /> New High Score!
             </p>
           )}
@@ -279,7 +279,7 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
           <div>
-            <h3 className="text-base sm:text-lg font-semibold mb-3">Japanese</h3>
+            <h3 className="text-base sm:text-lg font-semibold mb-3 dark:text-white">Japanese</h3>
             <div className="space-y-2">
               {leftItems.map((item) => (
                 <button
@@ -288,12 +288,12 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
                   disabled={grayedOut.includes(item.instanceId)}
                   className={`w-full p-3 sm:p-4 rounded-lg text-left font-medium transition-all text-sm sm:text-base ${
                     grayedOut.includes(item.instanceId)
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                       : wrongMatch && selectedLeft?.instanceId === item.instanceId
                       ? 'bg-red-500 text-white'
                       : selectedLeft?.instanceId === item.instanceId
                       ? 'bg-blue-500 text-white'
-                      : 'bg-white border-2 border-gray-200 hover:border-blue-300'
+                      : 'bg-white dark:bg-gray-700 dark:text-white border-2 border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500'
                   }`}
                 >
                   {item.text}
@@ -303,7 +303,7 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
           </div>
 
           <div>
-            <h3 className="text-base sm:text-lg font-semibold mb-3">English</h3>
+            <h3 className="text-base sm:text-lg font-semibold mb-3 dark:text-white">English</h3>
             <div className="space-y-2">
               {rightItems.map((item) => (
                 <button
@@ -312,12 +312,12 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
                   disabled={grayedOut.includes(item.instanceId)}
                   className={`w-full p-3 sm:p-4 rounded-lg text-left font-medium transition-all text-sm sm:text-base ${
                     grayedOut.includes(item.instanceId)
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed'
                       : wrongMatch && selectedRight?.instanceId === item.instanceId
                       ? 'bg-red-500 text-white'
                       : selectedRight?.instanceId === item.instanceId
                       ? 'bg-blue-500 text-white'
-                      : 'bg-white border-2 border-gray-200 hover:border-blue-300'
+                      : 'bg-white dark:bg-gray-700 dark:text-white border-2 border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500'
                   }`}
                 >
                   {item.text}

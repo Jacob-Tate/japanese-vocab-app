@@ -1,6 +1,6 @@
 // src/App.jsx
 import React, { useState, useEffect } from 'react';
-import { Book, Layers, Play, MessageSquare, BarChart3, Download } from 'lucide-react';
+import { Book, Layers, Play, MessageSquare, BarChart3, Download, Moon, Sun } from 'lucide-react';
 import { api } from './api';
 import VocabularyManager from './components/VocabularyManager';
 import SentenceManager from './components/SentenceManager';
@@ -31,10 +31,28 @@ export default function JapaneseVocabApp() {
   const [flashcardStartingSide, setFlashcardStartingSide] = useState('japanese');
   const [questionCount, setQuestionCount] = useState(10);
   const [romajiMode, setRomajiMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
     loadData();
+    // Load dark mode preference
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+      setDarkMode(true);
+      document.documentElement.classList.add('dark');
+    }
   }, []);
+
+  const toggleDarkMode = () => {
+    setDarkMode(!darkMode);
+    if (!darkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  };
 
   const loadData = async () => {
     const vocab = await api.getAllVocab();
@@ -71,34 +89,43 @@ export default function JapaneseVocabApp() {
   return (
     <>
       <ReloadPrompt />
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 transition-colors duration-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <header className="bg-white shadow-md p-4 sm:p-6 mb-4 sm:mb-6 rounded-lg sm:rounded-none">
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800">Japanese Vocabulary Practice</h1>
+          <header className="bg-white dark:bg-gray-800 shadow-md p-4 sm:p-6 mb-4 sm:mb-6 rounded-lg sm:rounded-none transition-colors duration-200">
+            <div className="flex items-center justify-between">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 dark:text-white">Japanese Vocabulary Practice</h1>
+              <button
+                onClick={toggleDarkMode}
+                className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                aria-label="Toggle dark mode"
+              >
+                {darkMode ? <Sun size={24} className="text-yellow-400" /> : <Moon size={24} className="text-gray-600" />}
+              </button>
+            </div>
           </header>
 
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4 sm:mb-6 overflow-x-auto">
-            <button onClick={() => setCurrentView('vocab')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${currentView === 'vocab' ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-50'}`}>
+            <button onClick={() => setCurrentView('vocab')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${currentView === 'vocab' ? 'bg-blue-500 text-white' : 'bg-white dark:bg-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
               <Book size={20} /> Vocabulary
             </button>
-            <button onClick={() => setCurrentView('sentences')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${currentView === 'sentences' ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-50'}`}>
+            <button onClick={() => setCurrentView('sentences')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${currentView === 'sentences' ? 'bg-blue-500 text-white' : 'bg-white dark:bg-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
               <MessageSquare size={20} /> Sentences
             </button>
-            <button onClick={() => setCurrentView('sets')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${currentView === 'sets' ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-50'}`}>
+            <button onClick={() => setCurrentView('sets')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${currentView === 'sets' ? 'bg-blue-500 text-white' : 'bg-white dark:bg-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
               <Layers size={20} /> Sets
             </button>
-            <button onClick={() => setCurrentView('practice')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${currentView === 'practice' ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-50'}`}>
+            <button onClick={() => setCurrentView('practice')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${currentView === 'practice' ? 'bg-blue-500 text-white' : 'bg-white dark:bg-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
               <Play size={20} /> Practice
             </button>
-            <button onClick={() => setCurrentView('stats')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${currentView === 'stats' ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-50'}`}>
+            <button onClick={() => setCurrentView('stats')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${currentView === 'stats' ? 'bg-blue-500 text-white' : 'bg-white dark:bg-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
               <BarChart3 size={20} /> Stats
             </button>
-            <button onClick={() => setCurrentView('import')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${currentView === 'import' ? 'bg-blue-500 text-white' : 'bg-white hover:bg-gray-50'}`}>
+            <button onClick={() => setCurrentView('import')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${currentView === 'import' ? 'bg-blue-500 text-white' : 'bg-white dark:bg-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
               <Download size={20} /> Data
             </button>
           </div>
 
-          <div className="bg-white rounded-lg shadow-lg">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg transition-colors duration-200">
             {currentView === 'vocab' && <VocabularyManager vocabulary={vocabulary} onRefresh={loadData} />}
             {currentView === 'sentences' && <SentenceManager sentences={sentences} onRefresh={loadData} />}
             {currentView === 'sets' && <SetManager vocabulary={vocabulary} sentences={sentences} sets={sets} onRefresh={loadData} />}

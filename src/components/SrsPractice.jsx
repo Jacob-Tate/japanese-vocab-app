@@ -24,7 +24,8 @@ export default function SrsPractice({ set, onExit }) {
         api.getSrsStats(set.id)
       ]);
       // originalAttempt tracks the status within this session: 'pending', 'incorrect'
-      setDueWords(due.map(word => ({ ...word, originalAttempt: 'pending' }))); 
+      setDueWords(due.map(word => ({ ...word, originalAttempt: 'pending' })));
+      
       setStats(srsStats);
       if (due.length === 0) {
         setIsSessionComplete(true);
@@ -40,7 +41,7 @@ export default function SrsPractice({ set, onExit }) {
     if (currentIndex >= dueWords.length) return;
 
     const currentWord = dueWords[currentIndex];
-    
+        
     // Logic for an incorrect answer
     if (quality === 'incorrect') {
       // Only log the failure to the backend on the FIRST incorrect attempt this session
@@ -54,12 +55,13 @@ export default function SrsPractice({ set, onExit }) {
       let newQueue = [...dueWords.slice(0, currentIndex), ...dueWords.slice(currentIndex + 1)];
       const reinsertIndex = Math.min(currentIndex + 2, newQueue.length); // Insert 2 spots away or at the end
       newQueue.splice(reinsertIndex, 0, wordToRequeue);
-      
+            
       setDueWords(newQueue);
       setShowAnswer(false);
-    
-    // Logic for a correct answer
-    } else { 
+        
+      // Logic for a correct answer
+    } else {
+      
       // Only log a "correct" review to the backend if it was correct on the first try.
       // This prevents overriding the "incorrect" status which correctly schedules it for tomorrow.
       if (currentWord.originalAttempt === 'pending') {
@@ -69,12 +71,12 @@ export default function SrsPractice({ set, onExit }) {
         // If it was previously incorrect, we just count it as re-learned for the session stats.
         setSessionResults(prev => ({ ...prev, reCorrect: prev.reCorrect + 1 }));
       }
-      
+            
       // Remove the word from the session queue
       const newQueue = [...dueWords.slice(0, currentIndex), ...dueWords.slice(currentIndex + 1)];
       setDueWords(newQueue);
       setShowAnswer(false);
-      
+            
       // If the queue is now empty, the session is over.
       if (newQueue.length === 0) {
         setIsSessionComplete(true);
@@ -95,39 +97,39 @@ export default function SrsPractice({ set, onExit }) {
 
   if (isLoading) {
     return (
-      <div className="p-6 text-center">
-        <h2 className="text-2xl font-bold mb-4">Spaced Repetition</h2>
-        <p>Loading your review session...</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-6 text-center">
+        <h2 className="text-2xl font-bold mb-4 dark:text-white">Spaced Repetition</h2>
+        <p className="dark:text-gray-300">Loading your review session...</p>
       </div>
     );
   }
-  
+    
   const currentCard = !isSessionComplete && dueWords.length > 0 ? dueWords[currentIndex] : null;
 
   if (isSessionComplete) {
     const totalReviewed = sessionResults.correct + sessionResults.incorrect;
     return (
-      <div className="p-4 sm:p-6 text-center">
-        <h2 className="text-xl sm:text-2xl font-bold mb-4">SRS Session Complete!</h2>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6 text-center">
+        <h2 className="text-xl sm:text-2xl font-bold mb-4 dark:text-white">SRS Session Complete!</h2>
         {totalReviewed === 0 ? (
-          <p className="text-lg mb-4">🎉 No words due for review right now. Great job staying on top of your studies!</p>
+          <p className="text-lg mb-4 dark:text-gray-300">🎉 No words due for review right now. Great job staying on top of your studies!</p>
         ) : (
           <div>
-            <p className="text-lg mb-4">You reviewed {totalReviewed} unique words.</p>
+            <p className="text-lg mb-4 dark:text-gray-300">You reviewed {totalReviewed} unique words.</p>
             <div className="flex justify-center gap-6 mb-6">
-              <div className="text-green-600">
+              <div className="text-green-600 dark:text-green-400">
                 <div className="text-4xl font-bold">{sessionResults.correct}</div>
                 <div>Correct</div>
               </div>
-              <div className="text-red-600">
+              <div className="text-red-600 dark:text-red-400">
                 <div className="text-4xl font-bold">{sessionResults.incorrect}</div>
                 <div>Incorrect</div>
               </div>
               {sessionResults.reCorrect > 0 && (
-                 <div className="text-blue-600">
-                   <div className="text-4xl font-bold">{sessionResults.reCorrect}</div>
-                   <div>Re-learned</div>
-                 </div>
+                <div className="text-blue-600 dark:text-blue-400">
+                  <div className="text-4xl font-bold">{sessionResults.reCorrect}</div>
+                  <div>Re-learned</div>
+                </div>
               )}
             </div>
           </div>
@@ -136,46 +138,46 @@ export default function SrsPractice({ set, onExit }) {
           <button onClick={startNewSession} className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 flex items-center justify-center gap-2">
             <RotateCcw size={20} /> Check for More Reviews
           </button>
-          <button onClick={onExit} className="bg-gray-200 px-6 py-3 rounded-lg hover:bg-gray-300">
+          <button onClick={onExit} className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-6 py-3 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600">
             Exit
           </button>
         </div>
       </div>
     );
   }
-  
+    
   const progress = ((currentIndex + 1) / dueWords.length) * 100;
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6">
-        <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+        <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2 dark:text-white">
           <Brain className="text-cyan-500" /> Spaced Repetition: {set.name}
         </h2>
-        <button onClick={onExit} className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Exit</button>
+        <button onClick={onExit} className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600">Exit</button>
       </div>
-      
+            
       <div className="mb-4">
-        <div className="flex justify-between text-xs sm:text-sm text-gray-600 mb-2">
+        <div className="flex justify-between text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-2">
           <span>Words Remaining: {dueWords.length}</span>
           <span>{stats ? `${stats.due_count} originally due` : ''}</span>
         </div>
       </div>
-      
+            
       <div className="flex flex-col items-center">
         <div 
           onClick={() => setShowAnswer(true)}
-          className="w-full max-w-2xl h-64 sm:h-80 bg-white rounded-2xl shadow-2xl flex items-center justify-center p-6 sm:p-8 mb-6 transition-all"
+          className="w-full max-w-2xl h-64 sm:h-80 bg-white dark:bg-gray-700 rounded-2xl shadow-2xl flex items-center justify-center p-6 sm:p-8 mb-6 transition-all cursor-pointer"
         >
           <div className="text-center">
-            <p className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 break-words">
+            <p className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 break-words dark:text-white">
               {currentCard.japanese}
             </p>
             {showAnswer && (
-              <p className="text-2xl sm:text-3xl text-gray-700">{currentCard.english}</p>
+              <p className="text-2xl sm:text-3xl text-gray-700 dark:text-gray-300">{currentCard.english}</p>
             )}
             {!showAnswer && (
-              <p className="text-gray-400 text-sm">Click to show answer</p>
+              <p className="text-gray-400 dark:text-gray-500 text-sm">Click to show answer</p>
             )}
           </div>
         </div>

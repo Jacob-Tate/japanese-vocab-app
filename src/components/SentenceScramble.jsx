@@ -5,14 +5,14 @@ import { api } from '../api';
 
 const tokenizeJapanese = (sentence) => {
   if (!sentence) return [];
-    
+      
   const particles = ['は', 'が', 'を', 'に', 'へ', 'で', 'と', 'も', 'の'];
   const regex = new RegExp(`(${particles.join('|')})`, 'g');
-    
+      
   const tokens = sentence
     .split(regex)
     .filter(Boolean);
-  
+
   return tokens;
 };
  
@@ -82,7 +82,7 @@ export default function SentenceScramble({ set, sentences, onExit }) {
     setAnswer([]);
     setFeedback(null);
   };
-    
+      
   const handleWordBankClick = (word, index) => {
     setWordBank(wordBank.filter((_, i) => i !== index));
     setAnswer([...answer, word]);
@@ -118,32 +118,32 @@ export default function SentenceScramble({ set, sentences, onExit }) {
       saveGameCompletion(currentScore);
     }
   };
-    
+      
   if (questions.length === 0) {
     return (
-      <div className="p-4 sm:p-6 text-center">
-        <h2 className="text-xl sm:text-2xl font-bold mb-4">Sentence Scramble</h2>
-        <p className="text-red-500">This set has no sentences to practice.</p>
-        <button onClick={onExit} className="mt-4 px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Back</button>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6 text-center">
+        <h2 className="text-xl sm:text-2xl font-bold mb-4 dark:text-white">Sentence Scramble</h2>
+        <p className="text-red-500 dark:text-red-400">This set has no sentences to practice.</p>
+        <button onClick={onExit} className="mt-4 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600">Back</button>
       </div>
     );
   }
-    
+      
   if (isComplete) {
     return (
-      <div className="p-4 sm:p-6 text-center">
-        <h2 className="text-xl sm:text-2xl font-bold mb-4">Well Done!</h2>
-        <p className="text-lg mb-2">Final Score: <span className="font-bold text-green-600">{score}</span></p>
-        {highScore > 0 && <p className="text-sm mb-4">High Score: {highScore}</p>}
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6 text-center">
+        <h2 className="text-xl sm:text-2xl font-bold mb-4 dark:text-white">Well Done!</h2>
+        <p className="text-lg mb-2 dark:text-gray-300">Final Score: <span className="font-bold text-green-600 dark:text-green-400">{score}</span></p>
+        {highScore > 0 && <p className="text-sm mb-4 dark:text-gray-400">High Score: {highScore}</p>}
         {isNewHighScore && (
-          <p className="text-yellow-600 font-bold mb-4 flex items-center justify-center gap-2">
+          <p className="text-yellow-600 dark:text-yellow-400 font-bold mb-4 flex items-center justify-center gap-2">
             <Trophy size={24} /> New High Score!
           </p>
         )}
         <button onClick={initGame} className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 flex items-center gap-2 mx-auto">
           <RotateCcw size={20} /> Play Again
         </button>
-        <button onClick={onExit} className="mt-4 text-sm text-gray-600 hover:underline">Exit to menu</button>
+        <button onClick={onExit} className="mt-4 text-sm text-gray-600 dark:text-gray-400 hover:underline">Exit to menu</button>
       </div>
     );
   }
@@ -151,14 +151,14 @@ export default function SentenceScramble({ set, sentences, onExit }) {
   const progress = ((currentIndex + 1) / questions.length) * 100;
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6">
       <div className="flex justify-between items-center gap-4 mb-6">
-        <h2 className="text-xl sm:text-2xl font-bold">Sentence Scramble: {set.name}</h2>
-        <button onClick={onExit} className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Exit</button>
+        <h2 className="text-xl sm:text-2xl font-bold dark:text-white">Sentence Scramble: {set.name}</h2>
+        <button onClick={onExit} className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600">Exit</button>
       </div>
-            
+                  
       <div className="mb-4">
-        <div className="flex justify-between text-sm text-gray-600 mb-2">
+        <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
           <span>Question {currentIndex + 1} of {questions.length}</span>
           <div className="flex items-center gap-4">
             <span>Score: {score}</span>
@@ -170,16 +170,16 @@ export default function SentenceScramble({ set, sentences, onExit }) {
             )}
           </div>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
+        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
           <div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${progress}%` }}/>
         </div>
       </div>
-            
-      <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8">
-        <p className="text-gray-600 mb-2">Translate and unscramble:</p>
-        <h3 className="text-2xl font-semibold mb-6 text-center">{questions[currentIndex].english}</h3>
+                  
+      <div className="bg-white dark:bg-gray-700 rounded-2xl shadow-lg p-6 sm:p-8">
+        <p className="text-gray-600 dark:text-gray-400 mb-2">Translate and unscramble:</p>
+        <h3 className="text-2xl font-semibold mb-6 text-center dark:text-white">{questions[currentIndex].english}</h3>
 
-        <div className="bg-gray-100 rounded-lg min-h-[6rem] p-3 flex flex-wrap items-center justify-center gap-2 mb-4">
+        <div className="bg-gray-100 dark:bg-gray-800 rounded-lg min-h-[6rem] p-3 flex flex-wrap items-center justify-center gap-2 mb-4">
           {answer.map((word, index) => (
             <button key={index} onClick={() => handleAnswerClick(word, index)} className="bg-blue-500 text-white px-3 py-2 rounded-lg text-lg">
               {word}
@@ -191,18 +191,18 @@ export default function SentenceScramble({ set, sentences, onExit }) {
             </div>
           )}
         </div>
-                
-        <div className="border-t-2 border-dashed my-4"></div>
+                        
+        <div className="border-t-2 border-dashed dark:border-gray-600 my-4"></div>
 
         <div className="min-h-[6rem] p-3 flex flex-wrap items-center justify-center gap-2 mb-6">
           {wordBank.map((word, index) => (
-            <button key={index} onClick={() => handleWordBankClick(word, index)} className="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded-lg text-lg">
+            <button key={index} onClick={() => handleWordBankClick(word, index)} className="bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 dark:text-white px-3 py-2 rounded-lg text-lg">
               {word}
             </button>
           ))}
         </div>
 
-        <button onClick={checkAnswer} disabled={feedback === 'correct'} className="w-full bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 font-semibold text-lg disabled:bg-gray-400">
+        <button onClick={checkAnswer} disabled={feedback === 'correct'} className="w-full bg-green-500 text-white py-3 rounded-lg hover:bg-green-600 font-semibold text-lg disabled:bg-gray-400 dark:disabled:bg-gray-600">
           Check Answer
         </button>
       </div>

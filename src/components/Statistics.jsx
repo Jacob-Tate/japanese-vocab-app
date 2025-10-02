@@ -19,7 +19,7 @@ export default function Statistics() {
       const allSessions = await api.getAllGameSessions();
 
       const totalScore = allSessions.reduce((sum, session) => sum + session.score, 0);
-      
+            
       setStats({
         totalWords: vocab.length,
         totalSentences: sentences.length,
@@ -45,7 +45,7 @@ export default function Statistics() {
   };
 
   if (!stats) {
-    return <div className="p-6 text-center">Loading statistics...</div>;
+    return <div className="p-6 text-center dark:text-white">Loading statistics...</div>;
   }
 
   const gameModeNames = {
@@ -61,7 +61,7 @@ export default function Statistics() {
 
   return (
     <div className="p-4 sm:p-6">
-      <h2 className="text-xl sm:text-2xl font-bold mb-6 flex items-center gap-2">
+      <h2 className="text-xl sm:text-2xl font-bold mb-6 flex items-center gap-2 dark:text-white">
         <BarChart3 size={28} className="text-blue-500" />
         Your Learning Statistics
       </h2>
@@ -101,27 +101,27 @@ export default function Statistics() {
       </div>
 
       {Object.keys(stats.gameStats).length > 0 && (
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h3 className="text-lg font-semibold mb-4">Performance by Game Mode</h3>
+        <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-6 mb-6">
+          <h3 className="text-lg font-semibold mb-4 dark:text-white">Performance by Game Mode</h3>
           <div className="space-y-4">
             {Object.entries(stats.gameStats).map(([mode, data]) => (
-              <div key={mode} className="border-b pb-4 last:border-b-0">
+              <div key={mode} className="border-b dark:border-gray-600 pb-4 last:border-b-0">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="font-semibold">{gameModeNames[mode] || mode}</span>
-                  <span className="text-sm text-gray-600">{data.count} games played</span>
+                  <span className="font-semibold dark:text-white">{gameModeNames[mode] || mode}</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">{data.count} games played</span>
                 </div>
                 <div className="grid grid-cols-3 gap-4 text-sm">
                   <div>
-                    <span className="text-gray-600">Best: </span>
-                    <span className="font-bold text-green-600">{data.bestScore}</span>
+                    <span className="text-gray-600 dark:text-gray-400">Best: </span>
+                    <span className="font-bold text-green-600 dark:text-green-400">{data.bestScore}</span>
                   </div>
                   <div>
-                    <span className="text-gray-600">Average: </span>
-                    <span className="font-bold text-blue-600">{data.averageScore}</span>
+                    <span className="text-gray-600 dark:text-gray-400">Average: </span>
+                    <span className="font-bold text-blue-600 dark:text-blue-400">{data.averageScore}</span>
                   </div>
                   <div>
-                    <span className="text-gray-600">Worst: </span>
-                    <span className="font-bold text-gray-600">{data.worstScore}</span>
+                    <span className="text-gray-600 dark:text-gray-400">Worst: </span>
+                    <span className="font-bold text-gray-600 dark:text-gray-400">{data.worstScore}</span>
                   </div>
                 </div>
               </div>
@@ -130,16 +130,16 @@ export default function Statistics() {
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h3 className="text-lg font-semibold mb-4">Learning Insights</h3>
+      <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-6">
+        <h3 className="text-lg font-semibold mb-4 dark:text-white">Learning Insights</h3>
         <div className="space-y-3">
           <div className="flex items-start gap-3">
-            <div className="bg-blue-100 p-2 rounded">
-              <Target className="text-blue-600" size={20} />
+            <div className="bg-blue-100 dark:bg-blue-900 p-2 rounded">
+              <Target className="text-blue-600 dark:text-blue-400" size={20} />
             </div>
             <div>
-              <p className="font-semibold">Vocabulary Progress</p>
-              <p className="text-sm text-gray-600">
+              <p className="font-semibold dark:text-white">Vocabulary Progress</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 You have {stats.totalWords} words and {stats.totalSentences} sentences to practice
               </p>
             </div>
@@ -148,24 +148,24 @@ export default function Statistics() {
           {stats.totalGamesPlayed > 0 && (
             <>
               <div className="flex items-start gap-3">
-                <div className="bg-green-100 p-2 rounded">
-                  <TrendingUp className="text-green-600" size={20} />
+                <div className="bg-green-100 dark:bg-green-900 p-2 rounded">
+                  <TrendingUp className="text-green-600 dark:text-green-400" size={20} />
                 </div>
                 <div>
-                  <p className="font-semibold">Average Performance</p>
-                  <p className="text-sm text-gray-600">
+                  <p className="font-semibold dark:text-white">Average Performance</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
                     Your average score across all games is {stats.averageScore} points
                   </p>
                 </div>
               </div>
-
+              
               <div className="flex items-start gap-3">
-                <div className="bg-purple-100 p-2 rounded">
-                  <Calendar className="text-purple-600" size={20} />
+                <div className="bg-purple-100 dark:bg-purple-900 p-2 rounded">
+                  <Calendar className="text-purple-600 dark:text-purple-400" size={20} />
                 </div>
                 <div>
-                  <p className="font-semibold">Practice Sessions</p>
-                  <p className="text-sm text-gray-600">
+                  <p className="font-semibold dark:text-white">Practice Sessions</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
                     You've completed {stats.totalGamesPlayed} practice {stats.totalGamesPlayed === 1 ? 'session' : 'sessions'}
                   </p>
                 </div>
@@ -175,12 +175,12 @@ export default function Statistics() {
 
           {stats.totalGamesPlayed === 0 && (
             <div className="flex items-start gap-3">
-              <div className="bg-yellow-100 p-2 rounded">
-                <Clock className="text-yellow-600" size={20} />
+              <div className="bg-yellow-100 dark:bg-yellow-900 p-2 rounded">
+                <Clock className="text-yellow-600 dark:text-yellow-400" size={20} />
               </div>
               <div>
-                <p className="font-semibold">Get Started!</p>
-                <p className="text-sm text-gray-600">
+                <p className="font-semibold dark:text-white">Get Started!</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   Start practicing to track your progress and see detailed statistics
                 </p>
               </div>

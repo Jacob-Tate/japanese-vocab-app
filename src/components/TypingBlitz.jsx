@@ -18,7 +18,7 @@ export default function TypingBlitz({ set, vocabulary, onExit, fallingLanguage =
   });
   const [highScore, setHighScore] = useState(0);
   const [isNewHighScore, setIsNewHighScore] = useState(false);
-    
+      
   const targetLanguage = fallingLanguage === 'japanese' ? 'english' : 'japanese';
   const gameStateRef = useRef(gameState);
   const gameLoopRef = useRef();
@@ -75,7 +75,7 @@ export default function TypingBlitz({ set, vocabulary, onExit, fallingLanguage =
       y: -20,
     };
   };
-    
+      
   const startGame = () => {
     const firstWord = createWord();
     setGameState({
@@ -95,7 +95,7 @@ export default function TypingBlitz({ set, vocabulary, onExit, fallingLanguage =
 
   useEffect(() => {
     if (gameState.isGameOver) return;
-        
+            
     const wordInterval = setInterval(() => {
       const newWord = createWord();
       if (newWord) {
@@ -111,7 +111,7 @@ export default function TypingBlitz({ set, vocabulary, onExit, fallingLanguage =
       if (gameStateRef.current.isGameOver) {
         return;
       }
-            
+                  
       let livesLost = 0;
       const updatedWords = gameStateRef.current.words
         .map(word => ({ ...word, y: word.y + WORD_SPEED }))
@@ -165,7 +165,7 @@ export default function TypingBlitz({ set, vocabulary, onExit, fallingLanguage =
         (wanakana && wanakana.toHiragana(w.japanese) === processedInput)
       );
     }
-        
+            
     if (matchedWord) {
       const newScore = gameState.score + 10;
       setGameState(prev => ({
@@ -178,30 +178,30 @@ export default function TypingBlitz({ set, vocabulary, onExit, fallingLanguage =
   };
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2"><Zap className="text-yellow-500" /> Typing Blitz: {set.name}</h2>
-        <button onClick={onExit} className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Exit</button>
+        <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2 dark:text-white"><Zap className="text-yellow-500" /> Typing Blitz: {set.name}</h2>
+        <button onClick={onExit} className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600">Exit</button>
       </div>
 
-      <div className="flex justify-around mb-4 bg-white p-3 rounded-lg shadow">
-        <div className="text-lg">Score: <span className="font-bold text-green-600">{gameState.score}</span></div>
-        <div className="text-lg">Lives: <span className="font-bold text-red-600">{'❤️'.repeat(Math.max(0, gameState.lives))}</span></div>
+      <div className="flex justify-around mb-4 bg-white dark:bg-gray-700 p-3 rounded-lg shadow">
+        <div className="text-lg dark:text-white">Score: <span className="font-bold text-green-600 dark:text-green-400">{gameState.score}</span></div>
+        <div className="text-lg dark:text-white">Lives: <span className="font-bold text-red-600 dark:text-red-400">{'❤️'.repeat(Math.max(0, gameState.lives))}</span></div>
         {highScore > 0 && (
-          <div className="text-lg flex items-center gap-1">
+          <div className="text-lg flex items-center gap-1 dark:text-white">
             <Trophy size={20} className="text-yellow-500" />
-            <span className="font-bold text-purple-600">{highScore}</span>
+            <span className="font-bold text-purple-600 dark:text-purple-400">{highScore}</span>
           </div>
         )}
       </div>
 
       {gameState.isGameOver ? (
-        <div className="flex flex-col justify-center items-center bg-white rounded-lg shadow-lg p-8 text-center" style={{ width: GAME_WIDTH, height: GAME_HEIGHT, maxWidth: '100%' }}>
-          <h3 className="text-3xl font-bold mb-4">Game Over!</h3>
-          <p className="text-xl mb-2">Final Score: {gameState.score}</p>
-          {highScore > 0 && <p className="text-sm mb-4">High Score: {highScore}</p>}
+        <div className="flex flex-col justify-center items-center bg-white dark:bg-gray-700 rounded-lg shadow-lg p-8 text-center" style={{ width: GAME_WIDTH, height: GAME_HEIGHT, maxWidth: '100%' }}>
+          <h3 className="text-3xl font-bold mb-4 dark:text-white">Game Over!</h3>
+          <p className="text-xl mb-2 dark:text-gray-300">Final Score: {gameState.score}</p>
+          {highScore > 0 && <p className="text-sm mb-4 dark:text-gray-400">High Score: {highScore}</p>}
           {isNewHighScore && (
-            <p className="text-yellow-600 font-bold mb-4 flex items-center justify-center gap-2">
+            <p className="text-yellow-600 dark:text-yellow-400 font-bold mb-4 flex items-center justify-center gap-2">
               <Trophy size={24} /> New High Score!
             </p>
           )}
@@ -232,7 +232,7 @@ export default function TypingBlitz({ set, vocabulary, onExit, fallingLanguage =
                   ? "Type in romaji..."
                   : `Type ${targetLanguage} translation...`
                 }
-                className="w-full px-4 py-3 text-lg border-2 border-gray-400 rounded-lg bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="w-full px-4 py-3 text-lg border-2 border-gray-400 dark:border-gray-600 rounded-lg bg-gray-800 text-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 autoComplete="off"
               />
             </form>

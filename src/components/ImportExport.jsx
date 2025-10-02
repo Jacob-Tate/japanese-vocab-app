@@ -15,7 +15,11 @@ export default function ImportExport({ onRefresh }) {
       const sentences = await api.getAllSentences();
       const sets = await api.getAllSets();
 
-      const vocabCsv = [ 'Type,Japanese,English', ...vocab.map(v => `word,"${v.japanese}","${v.english}"`), ...sentences.map(s => `sentence,"${s.japanese}","${s.english}"`) ].join('\n');
+      const vocabCsv = [
+'Type,Japanese,English',
+        ...vocab.map(v => `word,"${v.japanese}","${v.english}"`),
+        ...sentences.map(s => `sentence,"${s.japanese}","${s.english}"`)
+      ].join('\n');
       const vocabBlob = new Blob([vocabCsv], { type: 'text/csv' });
       const vocabUrl = URL.createObjectURL(vocabBlob);
       const vocabLink = document.createElement('a');
@@ -30,7 +34,7 @@ export default function ImportExport({ onRefresh }) {
       setsLink.href = setsUrl;
       setsLink.download = `japanese-sets-${new Date().toISOString().split('T')[0]}.json`;
       setsLink.click();
-
+    
     } catch (error) {
       console.error('Export failed:', error);
       alert('Failed to export data');
@@ -46,7 +50,7 @@ export default function ImportExport({ onRefresh }) {
 
     try {
       const text = await file.text();
-      
+            
       if (file.name.endsWith('.csv')) {
         await importFromCSV(text);
       } else if (file.name.endsWith('.json')) {
@@ -114,7 +118,7 @@ export default function ImportExport({ onRefresh }) {
     }
     setImportResult({ success: true, message: `Imported ${data.vocab?.length || 0} words, ${data.sentences?.length || 0} sentences, and ${data.sets?.length || 0} sets` });
   };
-  
+    
   const handleResetAllSrs = async () => {
     if (window.confirm("Are you sure you want to reset ALL Spaced Repetition progress? This will erase all review history and due dates for every word. This action cannot be undone.")) {
       setResetting(true);
@@ -133,34 +137,34 @@ export default function ImportExport({ onRefresh }) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
-      <h3 className="text-base sm:text-lg font-semibold mb-4">Import / Export Data</h3>
+    <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+      <h3 className="text-base sm:text-lg font-semibold mb-4 dark:text-white">Import / Export Data</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <button onClick={exportVocabulary} className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"><Download size={20} />Export All Data</button>
         <label className="flex items-center justify-center gap-2 px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors cursor-pointer"><Upload size={20} />{importing ? 'Importing...' : 'Import Data'}<input type="file" accept=".csv,.json" onChange={handleFileUpload} disabled={importing} className="hidden"/></label>
       </div>
 
       {importResult && (
-        <div className={`mt-4 p-4 rounded-lg ${importResult.success ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
+        <div className={`mt-4 p-4 rounded-lg ${importResult.success ? 'bg-green-50 dark:bg-green-900 border border-green-200 dark:border-green-700' : 'bg-red-50 dark:bg-red-900 border border-red-200 dark:border-red-700'}`}>
           <div className="flex items-start gap-2">
-            {importResult.success ? <FileText className="text-green-600 flex-shrink-0 mt-0.5" size={20} /> : <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />}
+            {importResult.success ? <FileText className="text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" size={20} /> : <AlertCircle className="text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" size={20} />}
             <div>
-              <p className={`font-semibold ${importResult.success ? 'text-green-800' : 'text-red-800'}`}>{importResult.message}</p>
-              {importResult.errors && (<div className="mt-2 text-sm text-red-700"><p className="font-semibold">Errors:</p><ul className="list-disc list-inside">{importResult.errors.slice(0, 5).map((error, i) => (<li key={i}>{error}</li>))}{importResult.errors.length > 5 && (<li>...and {importResult.errors.length - 5} more</li>)}</ul></div>)}
+              <p className={`font-semibold ${importResult.success ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'}`}>{importResult.message}</p>
+              {importResult.errors && (<div className="mt-2 text-sm text-red-700 dark:text-red-300"><p className="font-semibold">Errors:</p><ul className="list-disc list-inside">{importResult.errors.slice(0, 5).map((error, i) => (<li key={i}>{error}</li>))}{importResult.errors.length > 5 && (<li>...and {importResult.errors.length - 5} more</li>)}</ul></div>)}
             </div>
           </div>
         </div>
       )}
-      <div className="mt-4 text-sm text-gray-600 space-y-2"><p><strong>CSV Format:</strong> Type,Japanese,English (for bulk vocabulary)</p><p><strong>JSON Format:</strong> Complete backup including sets</p></div>
-      
-      <div className="mt-6 pt-6 border-t">
-         <h3 className="text-base sm:text-lg font-semibold mb-4 text-red-700 flex items-center gap-2"><AlertTriangle size={20}/> Danger Zone</h3>
-         <button onClick={handleResetAllSrs} disabled={resetting} className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:bg-red-300">
-            <RotateCcw size={20} />
-            {resetting ? 'Resetting...' : 'Reset All SRS Progress'}
-         </button>
-         {resetSuccess && <p className="mt-2 text-sm text-green-600">All SRS progress has been successfully reset.</p>}
-         <p className="mt-2 text-xs text-gray-500">This will make all vocabulary words "New" in the SRS system, resetting any learning progress.</p>
+      <div className="mt-4 text-sm text-gray-600 dark:text-gray-400 space-y-2"><p><strong>CSV Format:</strong> Type,Japanese,English (for bulk vocabulary)</p><p><strong>JSON Format:</strong> Complete backup including sets</p></div>
+            
+      <div className="mt-6 pt-6 border-t dark:border-gray-600">
+        <h3 className="text-base sm:text-lg font-semibold mb-4 text-red-700 dark:text-red-400 flex items-center gap-2"><AlertTriangle size={20}/> Danger Zone</h3>
+        <button onClick={handleResetAllSrs} disabled={resetting} className="flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:bg-red-300 dark:disabled:bg-red-800">
+          <RotateCcw size={20} />
+          {resetting ? 'Resetting...' : 'Reset All SRS Progress'}
+        </button>
+        {resetSuccess && <p className="mt-2 text-sm text-green-600 dark:text-green-400">All SRS progress has been successfully reset.</p>}
+        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">This will make all vocabulary words "New" in the SRS system, resetting any learning progress.</p>
       </div>
     </div>
   );

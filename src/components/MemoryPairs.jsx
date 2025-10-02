@@ -20,7 +20,7 @@ export default function MemoryPairs({ set, vocabulary, onExit }) {
   useEffect(() => {
     loadHighScore();
   }, [gridSize, set.id]);
-    
+      
   const loadHighScore = async () => {
     try {
       const result = await api.getHighScore(set.id, 'memory');
@@ -63,12 +63,12 @@ export default function MemoryPairs({ set, vocabulary, onExit }) {
   const initGame = () => {
     const words = vocabulary.filter(v => set.wordIds.includes(v.id));
     const pairsNeeded = (gridSize * gridSize) / 2;
-        
+            
     if (words.length < pairsNeeded) {
         setCards([]);
         return;
     }
-        
+            
     const selectedWords = [...words].sort(() => 0.5 - Math.random()).slice(0, pairsNeeded);
 
     const gameCards = [];
@@ -142,18 +142,18 @@ export default function MemoryPairs({ set, vocabulary, onExit }) {
   const isCardMatched = (cardId) => {
     return matchedCards.includes(cardId);
   };
-    
+      
   const pairsNeeded = (gridSize * gridSize) / 2;
   const hasEnoughWords = vocabulary.filter(v => set.wordIds.includes(v.id)).length >= pairsNeeded;
 
   if (!hasEnoughWords) {
     return (
-        <div className="p-4 sm:p-6 text-center">
-            <h2 className="text-xl sm:text-2xl font-bold mb-4">Memory Pairs: {set.name}</h2>
-            <p className="text-red-500">
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6 text-center">
+            <h2 className="text-xl sm:text-2xl font-bold mb-4 dark:text-white">Memory Pairs: {set.name}</h2>
+            <p className="text-red-500 dark:text-red-400">
                 This set needs at least {pairsNeeded} words for a {gridSize}x{gridSize} grid.
             </p>
-            <button onClick={onExit} className="mt-4 px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">
+            <button onClick={onExit} className="mt-4 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600">
                 Back
             </button>
         </div>
@@ -161,12 +161,12 @@ export default function MemoryPairs({ set, vocabulary, onExit }) {
   }
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6">
-        <h2 className="text-xl sm:text-2xl font-bold">Memory Pairs: {set.name}</h2>
+        <h2 className="text-xl sm:text-2xl font-bold dark:text-white">Memory Pairs: {set.name}</h2>
         <button
           onClick={onExit}
-          className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 w-full sm:w-auto"
+          className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 w-full sm:w-auto"
         >
           Exit
         </button>
@@ -174,15 +174,15 @@ export default function MemoryPairs({ set, vocabulary, onExit }) {
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div className="flex gap-4">
-          <div className="bg-white rounded-lg px-4 py-2 shadow">
-            <span className="text-sm text-gray-600">Moves: </span>
-            <span className="font-bold text-blue-600">{moves}</span>
+          <div className="bg-white dark:bg-gray-700 rounded-lg px-4 py-2 shadow">
+            <span className="text-sm text-gray-600 dark:text-gray-400">Moves: </span>
+            <span className="font-bold text-blue-600 dark:text-blue-400">{moves}</span>
           </div>
           {bestScore !== null && (
-            <div className="bg-white rounded-lg px-4 py-2 shadow flex items-center gap-2">
+            <div className="bg-white dark:bg-gray-700 rounded-lg px-4 py-2 shadow flex items-center gap-2">
               <Trophy size={20} className="text-yellow-500" />
-              <span className="text-sm text-gray-600">Best: </span>
-              <span className="font-bold text-purple-600">{bestScore}</span>
+              <span className="text-sm text-gray-600 dark:text-gray-400">Best: </span>
+              <span className="font-bold text-purple-600 dark:text-purple-400">{bestScore}</span>
             </div>
           )}
         </div>
@@ -190,13 +190,13 @@ export default function MemoryPairs({ set, vocabulary, onExit }) {
         <div className="flex gap-2">
           <button
             onClick={() => setGridSize(4)}
-            className={`px-3 py-1 rounded ${gridSize === 4 ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+            className={`px-3 py-1 rounded ${gridSize === 4 ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200'}`}
           >
             4×4
           </button>
           <button
             onClick={() => setGridSize(6)}
-            className={`px-3 py-1 rounded ${gridSize === 6 ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+            className={`px-3 py-1 rounded ${gridSize === 6 ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200'}`}
           >
             6×6
           </button>
@@ -204,11 +204,11 @@ export default function MemoryPairs({ set, vocabulary, onExit }) {
       </div>
 
       {isComplete ? (
-        <div className="bg-gradient-to-br from-green-100 to-blue-100 border-2 border-green-500 rounded-lg p-6 sm:p-8 text-center">
-          <h3 className="text-2xl sm:text-3xl font-bold text-green-700 mb-4">Complete!</h3>
-          <p className="text-xl mb-2">Total Moves: <span className="font-bold">{moves}</span></p>
+        <div className="bg-gradient-to-br from-green-100 to-blue-100 dark:from-green-900 dark:to-blue-900 border-2 border-green-500 dark:border-green-600 rounded-lg p-6 sm:p-8 text-center">
+          <h3 className="text-2xl sm:text-3xl font-bold text-green-700 dark:text-green-300 mb-4">Complete!</h3>
+          <p className="text-xl mb-2 dark:text-white">Total Moves: <span className="font-bold">{moves}</span></p>
           {isNewBest && (
-            <p className="text-yellow-600 font-bold mb-4 flex items-center justify-center gap-2">
+            <p className="text-yellow-600 dark:text-yellow-400 font-bold mb-4 flex items-center justify-center gap-2">
               <Trophy size={24} /> New Best Score!
             </p>
           )}
@@ -252,7 +252,7 @@ export default function MemoryPairs({ set, vocabulary, onExit }) {
         </div>
       )}
 
-      <div className="mt-6 text-center text-sm text-gray-600">
+      <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
         <p>Click cards to flip them. Match Japanese words with their English translations!</p>
       </div>
     </div>

@@ -53,34 +53,34 @@ export default function FlashcardDrill({ set, vocabulary, onExit, startingSide =
     setShowAnswer(false);
   };
 
-  if (cards.length === 0) return <div>Loading...</div>;
+  if (cards.length === 0) return <div className="dark:text-white">Loading...</div>;
 
   const currentCard = cards[currentIndex];
   const progress = ((currentIndex + 1) / cards.length) * 100;
-  
+    
   const frontSide = startingSide === 'japanese' ? currentCard.japanese : currentCard.english;
   const backSide = startingSide === 'japanese' ? currentCard.english : currentCard.japanese;
   const frontLabel = startingSide === 'japanese' ? 'Japanese' : 'English';
   const backLabel = startingSide === 'japanese' ? 'English' : 'Japanese';
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6">
-        <h2 className="text-xl sm:text-2xl font-bold">Flashcards: {set.name}</h2>
+        <h2 className="text-xl sm:text-2xl font-bold dark:text-white">Flashcards: {set.name}</h2>
         <button
           onClick={onExit}
-          className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 w-full sm:w-auto"
+          className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 w-full sm:w-auto"
         >
           Exit
         </button>
       </div>
 
       <div className="mb-4">
-        <div className="flex justify-between text-xs sm:text-sm text-gray-600 mb-2">
+        <div className="flex justify-between text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-2">
           <span>Card {currentIndex + 1} of {cards.length}</span>
           <span>Studied: {studied}</span>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
+        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
           <div
             className="bg-blue-500 h-2 rounded-full transition-all"
             style={{ width: `${progress}%` }}
@@ -92,13 +92,13 @@ export default function FlashcardDrill({ set, vocabulary, onExit, startingSide =
         <div className="relative w-full max-w-2xl">
           <div
             onClick={handleFlip}
-            className="w-full h-64 sm:h-80 bg-white rounded-2xl shadow-2xl cursor-pointer flex items-center justify-center p-6 sm:p-8 mb-6 hover:shadow-3xl transition-all"
+            className="w-full h-64 sm:h-80 bg-white dark:bg-gray-700 rounded-2xl shadow-2xl cursor-pointer flex items-center justify-center p-6 sm:p-8 mb-6 hover:shadow-3xl transition-all"
           >
             <div className="text-center">
-              <p className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 break-words">
+              <p className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 break-words dark:text-white">
                 {showAnswer ? backSide : frontSide}
               </p>
-              <p className="text-gray-400 text-xs sm:text-sm">
+              <p className="text-gray-400 dark:text-gray-500 text-xs sm:text-sm">
                 {showAnswer ? `(${backLabel})` : `(${frontLabel})`} - Click to flip
               </p>
             </div>
@@ -121,7 +121,7 @@ export default function FlashcardDrill({ set, vocabulary, onExit, startingSide =
           <button
             onClick={handlePrevious}
             disabled={currentIndex === 0}
-            className="px-4 sm:px-6 py-3 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 sm:px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Previous
           </button>
