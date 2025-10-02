@@ -15,10 +15,13 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
   const [highScore, setHighScore] = useState(0);
   const [isNewHighScore, setIsNewHighScore] = useState(false);
   const inputRef = useRef(null);
+  const isMultiSet = !!set.sourceSetIds;
 
   useEffect(() => {
     initChallenge();
-    loadHighScore();
+    if (!isMultiSet && set.id !== 'all') {
+      loadHighScore();
+    }
   }, []);
 
   const loadHighScore = async () => {
@@ -33,19 +36,32 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
   };
 
   const saveGameCompletion = async (finalScore) => {
-    // Always save the game session for statistics
+    if (set.id === 'all') return;
+
+    const payload = {
+      gameMode: 'typing',
+      score: finalScore,
+      metadata: { questionCount, startingSide, romajiMode },
+    };
+    if (isMultiSet) {
+      payload.setIds = set.sourceSetIds;
+    } else {
+      payload.setId = set.id;
+    }
+
     try {
-      await api.saveGameSession(set.id, 'typing', finalScore, { questionCount, startingSide, romajiMode });
+      await api.saveGameSession(payload);
     } catch (error) {
       console.error('Failed to save game session:', error);
     }
 
-    // Check if it's a new high score
     if (finalScore > highScore) {
       try {
-        await api.saveHighScore(set.id, 'typing', finalScore, { questionCount, startingSide, romajiMode });
-        setHighScore(finalScore);
-        setIsNewHighScore(true);
+        await api.saveHighScore(payload);
+        if (!isMultiSet) {
+          setHighScore(finalScore);
+          setIsNewHighScore(true);
+        }
       } catch (error) {
         console.error('Failed to save high score:', error);
       }
@@ -205,7 +221,7 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
             <p className="text-yellow-600 dark:text-yellow-400 font-bold mb-2 flex items-center justify-center gap-2">
               <Trophy size={24} /> New High Score!
             </p>
-          ) : highScore > 0 ? (
+          ) : highScore > 0 && !isMultiSet ? (
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">High Score: {highScore}</p>
           ) : null}
           <div className="flex justify-center gap-4 text-sm mb-6">
@@ -254,7 +270,7 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
           <div className="flex gap-4">
             <span>Score: {score}</span>
             {streak > 0 && <span className="text-orange-600 dark:text-orange-400">🔥 Streak: {streak}</span>}
-            {highScore > 0 && (
+            {highScore > 0 && !isMultiSet && (
               <span className="flex items-center gap-1">
                 <Trophy size={16} className="text-yellow-500" />
                 {highScore}

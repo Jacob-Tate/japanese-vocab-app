@@ -18,6 +18,7 @@ export default function TypingBlitz({ set, vocabulary, onExit, fallingLanguage =
   });
   const [highScore, setHighScore] = useState(0);
   const [isNewHighScore, setIsNewHighScore] = useState(false);
+  const isMultiSet = !!set.sourceSetIds;
       
   const targetLanguage = fallingLanguage === 'japanese' ? 'english' : 'japanese';
   const gameStateRef = useRef(gameState);
@@ -29,7 +30,9 @@ export default function TypingBlitz({ set, vocabulary, onExit, fallingLanguage =
   }, [gameState]);
 
   useEffect(() => {
-    loadHighScore();
+    if (!isMultiSet && set.id !== 'all') {
+      loadHighScore();
+    }
   }, []);
 
   const loadHighScore = async () => {
@@ -44,19 +47,32 @@ export default function TypingBlitz({ set, vocabulary, onExit, fallingLanguage =
   };
 
   const saveGameCompletion = async (finalScore) => {
-    // Always save the game session for statistics
+    if (set.id === 'all') return;
+
+    const payload = {
+      gameMode: 'typing_blitz',
+      score: finalScore,
+      metadata: { fallingLanguage, romajiMode },
+    };
+    if (isMultiSet) {
+      payload.setIds = set.sourceSetIds;
+    } else {
+      payload.setId = set.id;
+    }
+
     try {
-      await api.saveGameSession(set.id, 'typing_blitz', finalScore, { fallingLanguage, romajiMode });
+      await api.saveGameSession(payload);
     } catch (error) {
       console.error('Failed to save game session:', error);
     }
 
-    // Check if it's a new high score
     if (finalScore > highScore) {
       try {
-        await api.saveHighScore(set.id, 'typing_blitz', finalScore, { fallingLanguage, romajiMode });
-        setHighScore(finalScore);
-        setIsNewHighScore(true);
+        await api.saveHighScore(payload);
+        if (!isMultiSet) {
+          setHighScore(finalScore);
+          setIsNewHighScore(true);
+        }
       } catch (error) {
         console.error('Failed to save high score:', error);
       }
@@ -187,7 +203,7 @@ export default function TypingBlitz({ set, vocabulary, onExit, fallingLanguage =
       <div className="flex justify-around mb-4 bg-white dark:bg-gray-700 p-3 rounded-lg shadow">
         <div className="text-lg dark:text-white">Score: <span className="font-bold text-green-600 dark:text-green-400">{gameState.score}</span></div>
         <div className="text-lg dark:text-white">Lives: <span className="font-bold text-red-600 dark:text-red-400">{'❤️'.repeat(Math.max(0, gameState.lives))}</span></div>
-        {highScore > 0 && (
+        {highScore > 0 && !isMultiSet && (
           <div className="text-lg flex items-center gap-1 dark:text-white">
             <Trophy size={20} className="text-yellow-500" />
             <span className="font-bold text-purple-600 dark:text-purple-400">{highScore}</span>
@@ -199,7 +215,7 @@ export default function TypingBlitz({ set, vocabulary, onExit, fallingLanguage =
         <div className="flex flex-col justify-center items-center bg-white dark:bg-gray-700 rounded-lg shadow-lg p-8 text-center" style={{ width: GAME_WIDTH, height: GAME_HEIGHT, maxWidth: '100%' }}>
           <h3 className="text-3xl font-bold mb-4 dark:text-white">Game Over!</h3>
           <p className="text-xl mb-2 dark:text-gray-300">Final Score: {gameState.score}</p>
-          {highScore > 0 && <p className="text-sm mb-4 dark:text-gray-400">High Score: {highScore}</p>}
+          {highScore > 0 && !isMultiSet && <p className="text-sm mb-4 dark:text-gray-400">High Score: {highScore}</p>}
           {isNewHighScore && (
             <p className="text-yellow-600 dark:text-yellow-400 font-bold mb-4 flex items-center justify-center gap-2">
               <Trophy size={24} /> New High Score!

@@ -12,14 +12,19 @@ export default function MemoryPairs({ set, vocabulary, onExit }) {
   const [gridSize, setGridSize] = useState(4);
   const [bestScore, setBestScore] = useState(null);
   const [isNewBest, setIsNewBest] = useState(false);
+  const isMultiSet = !!set.sourceSetIds;
 
   useEffect(() => {
     initGame();
   }, [gridSize]);
 
   useEffect(() => {
-    loadHighScore();
-  }, [gridSize, set.id]);
+    if (!isMultiSet && set.id !== 'all') {
+      loadHighScore();
+    } else {
+      setBestScore(null);
+    }
+  }, [gridSize, set.id, isMultiSet]);
       
   const loadHighScore = async () => {
     try {
@@ -41,19 +46,32 @@ export default function MemoryPairs({ set, vocabulary, onExit }) {
   };
 
   const saveGameCompletion = async (finalMoves) => {
-    // Always save the game session for statistics
+    if (set.id === 'all') return;
+
+    const payload = {
+      gameMode: 'memory',
+      score: finalMoves,
+      metadata: { gridSize },
+    };
+    if (isMultiSet) {
+      payload.setIds = set.sourceSetIds;
+    } else {
+      payload.setId = set.id;
+    }
+
     try {
-      await api.saveGameSession(set.id, 'memory', finalMoves, { gridSize });
+      await api.saveGameSession(payload);
     } catch (error) {
       console.error('Failed to save game session:', error);
     }
 
-    // Check if it's a new best score (lower is better for memory game)
     if (!bestScore || finalMoves < bestScore) {
       try {
-        await api.saveHighScore(set.id, 'memory', finalMoves, { gridSize });
-        setBestScore(finalMoves);
-        setIsNewBest(true);
+        await api.saveHighScore(payload);
+        if (!isMultiSet) {
+          setBestScore(finalMoves);
+          setIsNewBest(true);
+        }
       } catch (error) {
         console.error('Failed to save high score:', error);
       }
@@ -178,7 +196,7 @@ export default function MemoryPairs({ set, vocabulary, onExit }) {
             <span className="text-sm text-gray-600 dark:text-gray-400">Moves: </span>
             <span className="font-bold text-blue-600 dark:text-blue-400">{moves}</span>
           </div>
-          {bestScore !== null && (
+          {bestScore !== null && !isMultiSet && (
             <div className="bg-white dark:bg-gray-700 rounded-lg px-4 py-2 shadow flex items-center gap-2">
               <Trophy size={20} className="text-yellow-500" />
               <span className="text-sm text-gray-600 dark:text-gray-400">Best: </span>

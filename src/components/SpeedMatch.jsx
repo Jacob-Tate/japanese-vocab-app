@@ -18,10 +18,13 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
   const [combo, setCombo] = useState(0);
   const [highScore, setHighScore] = useState(0);
   const [isNewHighScore, setIsNewHighScore] = useState(false);
+  const isMultiSet = !!set.sourceSetIds;
 
   useEffect(() => {
     initGame();
-    loadHighScore();
+    if (!isMultiSet && set.id !== 'all') {
+      loadHighScore();
+    }
   }, []);
 
   const loadHighScore = async () => {
@@ -36,19 +39,32 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
   };
 
   const saveGameCompletion = async (finalScore) => {
-    // Always save the game session for statistics
+    if (set.id === 'all') return;
+
+    const payload = {
+      gameMode: 'speedmatch',
+      score: finalScore,
+      metadata: { repetitions },
+    };
+    if (isMultiSet) {
+      payload.setIds = set.sourceSetIds;
+    } else {
+      payload.setId = set.id;
+    }
+
     try {
-      await api.saveGameSession(set.id, 'speedmatch', finalScore, { repetitions });
+      await api.saveGameSession(payload);
     } catch (error) {
       console.error('Failed to save game session:', error);
     }
 
-    // Check if it's a new high score
     if (finalScore > highScore) {
       try {
-        await api.saveHighScore(set.id, 'speedmatch', finalScore, { repetitions });
-        setHighScore(finalScore);
-        setIsNewHighScore(true);
+        await api.saveHighScore(payload);
+        if (!isMultiSet) {
+          setHighScore(finalScore);
+          setIsNewHighScore(true);
+        }
       } catch (error) {
         console.error('Failed to save high score:', error);
       }
@@ -252,7 +268,7 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
           <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Best</div>
           <div className="text-2xl sm:text-3xl font-bold text-purple-600 dark:text-purple-400 flex items-center justify-center gap-1">
             <Trophy size={20} />
-            {highScore}
+            {isMultiSet ? 'N/A' : highScore}
           </div>
         </div>
       </div>

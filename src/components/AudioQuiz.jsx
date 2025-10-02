@@ -23,10 +23,13 @@ export default function AudioQuiz({ set, vocabulary, onExit, questionCount = 10 
   const [isComplete, setIsComplete] = useState(false);
   const [highScore, setHighScore] = useState(0);
   const [isNewHighScore, setIsNewHighScore] = useState(false);
+  const isMultiSet = !!set.sourceSetIds;
 
   useEffect(() => {
     initQuiz();
-    loadHighScore();
+    if (!isMultiSet && set.id !== 'all') {
+      loadHighScore();
+    }
   }, []);
 
   const loadHighScore = async () => {
@@ -39,19 +42,32 @@ export default function AudioQuiz({ set, vocabulary, onExit, questionCount = 10 
   };
 
   const saveGameCompletion = async (finalScore) => {
-    // Always save the game session for statistics
+    if (set.id === 'all') return;
+
+    const payload = {
+      gameMode: 'audio_quiz',
+      score: finalScore,
+      metadata: { questionCount },
+    };
+    if (isMultiSet) {
+      payload.setIds = set.sourceSetIds;
+    } else {
+      payload.setId = set.id;
+    }
+
     try {
-      await api.saveGameSession(set.id, 'audio_quiz', finalScore, { questionCount });
+      await api.saveGameSession(payload);
     } catch (error) {
       console.error('Failed to save game session:', error);
     }
 
-    // Check if it's a new high score
     if (finalScore > highScore) {
       try {
-        await api.saveHighScore(set.id, 'audio_quiz', finalScore, { questionCount });
-        setHighScore(finalScore);
-        setIsNewHighScore(true);
+        await api.saveHighScore(payload);
+        if (!isMultiSet) {
+          setHighScore(finalScore);
+          setIsNewHighScore(true);
+        }
       } catch (error) {
         console.error('Failed to save high score:', error);
       }
@@ -145,7 +161,7 @@ export default function AudioQuiz({ set, vocabulary, onExit, questionCount = 10 
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6 text-center">
         <h2 className="text-xl sm:text-2xl font-bold mb-4 dark:text-white">Quiz Complete!</h2>
         <p className="text-lg mb-2 dark:text-gray-300">Your score: <span className="font-bold text-green-600 dark:text-green-400">{score}</span></p>
-        {highScore > 0 && <p className="text-sm mb-4 dark:text-gray-400">High Score: {highScore}</p>}
+        {highScore > 0 && !isMultiSet && <p className="text-sm mb-4 dark:text-gray-400">High Score: {highScore}</p>}
         {isNewHighScore && (
           <p className="text-yellow-600 dark:text-yellow-400 font-bold mb-4 flex items-center justify-center gap-2">
             <Trophy size={24} /> New High Score!
@@ -178,7 +194,7 @@ export default function AudioQuiz({ set, vocabulary, onExit, questionCount = 10 
           <span>Question {currentIndex + 1} of {questions.length}</span>
           <div className="flex items-center gap-4">
             <span>Score: {score}</span>
-            {highScore > 0 && (
+            {highScore > 0 && !isMultiSet && (
               <span className="flex items-center gap-1">
                 <Trophy size={16} className="text-yellow-500" />
                 {highScore}

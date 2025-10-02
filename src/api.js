@@ -90,11 +90,11 @@ export const api = {
     return response.json();
   },
   
-  async saveHighScore(setId, gameMode, score, metadata = null) {
+  async saveHighScore(data) {
     const response = await fetch(`${API_URL}/highscores`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ setId, gameMode, score, metadata })
+      body: JSON.stringify(data)
     });
     return response.json();
   },
@@ -110,11 +110,11 @@ export const api = {
   },
 
   // Game session tracking
-  async saveGameSession(setId, gameMode, score, metadata = null) {
+  async saveGameSession(data) {
     const response = await fetch(`${API_URL}/game-sessions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ setId, gameMode, score, metadata })
+      body: JSON.stringify(data)
     });
     return response.json();
   },

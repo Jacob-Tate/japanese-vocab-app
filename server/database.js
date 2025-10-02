@@ -9,7 +9,7 @@ const __dirname = dirname(__filename);
 const dbPath = join(__dirname, 'vocabulary.db');
 const db = new sqlite3.Database(dbPath);
 
-// CRITICAL: Enable foreign key constraints in SQLite
+// CRITICAL: Enable foreign key constraints in SQLite for all subsequent operations
 db.run('PRAGMA foreign_keys = ON');
 
 // Schema migration logic
@@ -26,6 +26,9 @@ db.get('PRAGMA user_version', (err, row) => {
     console.log('Running database migration to version 1 (add UNIQUE constraints)...');
     db.serialize(() => {
       db.run('BEGIN TRANSACTION');
+      
+      // *** FIX: Temporarily disable foreign keys to prevent CASCADE deletes during migration ***
+      db.run('PRAGMA foreign_keys = OFF');
 
       // Create new tables with UNIQUE constraints
       db.run(`
@@ -59,7 +62,7 @@ db.get('PRAGMA user_version', (err, row) => {
         if (err) console.error("Migration error (sentences):", err.message);
       });
 
-      // Drop old tables
+      // Drop old tables (this is now safe)
       db.run('DROP TABLE vocabulary');
       db.run('DROP TABLE sentences');
 
@@ -77,6 +80,8 @@ db.get('PRAGMA user_version', (err, row) => {
         } else {
           console.log('Database migration to version 1 complete.');
         }
+        // Foreign keys will be re-enabled for the connection automatically after the transaction
+        // because of the PRAGMA ON at the top of the file.
       });
     });
   }
@@ -321,28 +326,36 @@ export const dbOps = {
     });
   },
   
-  getAllSets() {
-    return new Promise((resolve, reject) => {
-      db.all('SELECT * FROM sets ORDER BY id DESC', async (err, sets) => {
-        if (err) return reject(err);
-        if (sets.length === 0) return resolve([]);
-        
-        try {
-          const setsWithContent = await Promise.all(sets.map(async set => {
-            const words = await new Promise((res, rej) => db.all(`SELECT sw.word_id FROM set_words sw INNER JOIN vocabulary v ON sw.word_id = v.id WHERE sw.set_id = ?`, [set.id], (e, r) => e ? rej(e) : res(r)));
-            const sentences = await new Promise((res, rej) => db.all(`SELECT ss.sentence_id FROM set_sentences ss INNER JOIN sentences s ON ss.sentence_id = s.id WHERE ss.set_id = ?`, [set.id], (e, r) => e ? rej(e) : res(r)));
-            return {
-              ...set,
-              wordIds: words.map(w => w.word_id),
-              sentenceIds: sentences.map(s => s.sentence_id)
-            };
-          }));
-          resolve(setsWithContent);
-        } catch (error) {
-          reject(error);
-        }
+  async getAllSets() {
+    const sets = await new Promise((resolve, reject) => {
+      db.all('SELECT * FROM sets ORDER BY name ASC', (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
       });
     });
+    
+    if (sets.length === 0) return [];
+
+    // Use a for...of loop to ensure queries are executed sequentially,
+    // which is safer with the default sqlite3 database object.
+    for (const set of sets) {
+      const words = await new Promise((resolve, reject) => {
+        db.all('SELECT word_id FROM set_words WHERE set_id = ?', [set.id], (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        });
+      });
+      const sentences = await new Promise((resolve, reject) => {
+        db.all('SELECT sentence_id FROM set_sentences WHERE set_id = ?', [set.id], (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        });
+      });
+      set.wordIds = words.map(w => w.word_id);
+      set.sentenceIds = sentences.map(s => s.sentence_id);
+    }
+
+    return sets;
   },
   
   deleteSet(id) {

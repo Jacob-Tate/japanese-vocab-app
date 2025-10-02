@@ -15,10 +15,13 @@ export default function MatchingGame({ set, vocabulary, onExit, repetitions = 3 
   const [score, setScore] = useState(0);
   const [highScore, setHighScore] = useState(0);
   const [isNewHighScore, setIsNewHighScore] = useState(false);
+  const isMultiSet = !!set.sourceSetIds;
 
   useEffect(() => {
     initGame();
-    loadHighScore();
+    if (!isMultiSet && set.id !== 'all') {
+      loadHighScore();
+    }
   }, []);
 
   const loadHighScore = async () => {
@@ -33,19 +36,32 @@ export default function MatchingGame({ set, vocabulary, onExit, repetitions = 3 
   };
 
   const saveGameCompletion = async (finalScore) => {
-    // Always save the game session for statistics
+    if (set.id === 'all') return;
+
+    const payload = {
+      gameMode: 'matching',
+      score: finalScore,
+      metadata: { repetitions },
+    };
+    if (isMultiSet) {
+      payload.setIds = set.sourceSetIds;
+    } else {
+      payload.setId = set.id;
+    }
+
     try {
-      await api.saveGameSession(set.id, 'matching', finalScore, { repetitions });
+      await api.saveGameSession(payload);
     } catch (error) {
       console.error('Failed to save game session:', error);
     }
 
-    // Check if it's a new high score
     if (!highScore || finalScore > highScore) {
       try {
-        await api.saveHighScore(set.id, 'matching', finalScore, { repetitions });
-        setHighScore(finalScore);
-        setIsNewHighScore(true);
+        await api.saveHighScore(payload);
+        if (!isMultiSet) {
+          setHighScore(finalScore);
+          setIsNewHighScore(true);
+        }
       } catch (error) {
         console.error('Failed to save high score:', error);
       }
@@ -209,7 +225,7 @@ export default function MatchingGame({ set, vocabulary, onExit, repetitions = 3 
         Score: <span className="font-bold text-blue-600 dark:text-blue-400">{score}</span> |
         Remaining: <span className="font-bold">{remainingWords}</span> |
         Showing: <span className="font-bold">{leftItems.length}</span>
-        {highScore > 0 && (
+        {highScore > 0 && !isMultiSet && (
           <span className="ml-4 flex items-center gap-1 inline-flex">
             <Trophy size={18} className="text-yellow-500" />
             Best: <span className="font-bold text-purple-600 dark:text-purple-400">{highScore}</span>

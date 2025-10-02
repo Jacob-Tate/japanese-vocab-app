@@ -137,9 +137,17 @@ app.put('/api/sets/:id', async (req, res) => {
 // High score routes
 app.post('/api/highscores', async (req, res) => {
   try {
-    const { setId, gameMode, score, metadata } = req.body;
-    const result = await dbOps.saveHighScore(setId, gameMode, score, metadata);
-    res.json(result);
+    const { setId, setIds, gameMode, score, metadata } = req.body;
+    if (setIds && Array.isArray(setIds)) {
+      const promises = setIds.map(id => dbOps.saveHighScore(id, gameMode, score, metadata));
+      await Promise.all(promises);
+      res.json({ success: true, count: setIds.length });
+    } else if (setId) {
+      const result = await dbOps.saveHighScore(setId, gameMode, score, metadata);
+      res.json(result);
+    } else {
+      res.status(400).json({ error: 'Either setId or setIds must be provided.' });
+    }
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -166,9 +174,17 @@ app.get('/api/highscores/:setId', async (req, res) => {
 // Game history routes
 app.post('/api/game-sessions', async (req, res) => {
   try {
-    const { setId, gameMode, score, metadata } = req.body;
-    const result = await dbOps.saveGameSession(setId, gameMode, score, metadata);
-    res.json(result);
+    const { setId, setIds, gameMode, score, metadata } = req.body;
+    if (setIds && Array.isArray(setIds)) {
+      const promises = setIds.map(id => dbOps.saveGameSession(id, gameMode, score, metadata));
+      await Promise.all(promises);
+      res.json({ success: true, count: setIds.length });
+    } else if (setId) {
+      const result = await dbOps.saveGameSession(setId, gameMode, score, metadata);
+      res.json(result);
+    } else {
+      res.status(400).json({ error: 'Either setId or setIds must be provided.' });
+    }
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
