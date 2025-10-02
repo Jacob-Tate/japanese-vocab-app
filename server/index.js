@@ -145,7 +145,7 @@ app.get('/api/highscores/:setId', async (req, res) => {
   }
 });
 
-// NEW: Game history routes
+// Game history routes
 app.post('/api/game-sessions', async (req, res) => {
   try {
     const { setId, gameMode, score, metadata } = req.body;
@@ -173,6 +173,53 @@ app.get('/api/game-statistics', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// SRS Routes
+app.get('/api/srs/due', async (req, res) => {
+  try {
+    const setId = req.query.setId && req.query.setId !== 'all' ? req.query.setId : null;
+    const limit = req.query.limit ? parseInt(req.query.limit, 10) : 20;
+    const words = await dbOps.getDueSrsWords(setId, limit);
+    res.json(words);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/srs/review', async (req, res) => {
+  try {
+    const { wordId, quality } = req.body;
+    if (!wordId || !quality) {
+        return res.status(400).json({ error: 'wordId and quality are required' });
+    }
+    await dbOps.updateSrsReview(wordId, quality);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/srs/stats', async (req, res) => {
+  try {
+    const setId = req.query.setId && req.query.setId !== 'all' ? req.query.setId : null;
+    const stats = await dbOps.getSrsStats(setId);
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// SRS Reset Route
+app.delete('/api/srs', async (req, res) => {
+  try {
+    const { wordId } = req.body; // wordId can be null/undefined for global reset
+    await dbOps.resetSrsData(wordId);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

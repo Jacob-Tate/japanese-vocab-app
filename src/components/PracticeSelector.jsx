@@ -1,6 +1,6 @@
 // src/components/PracticeSelector.jsx
 import React, { useState, useEffect } from 'react';
-import { Book, Play, Layers, Zap, ListChecks, Keyboard, Grid3x3, Volume2, Trophy, MessageSquare, Diameter } from 'lucide-react';
+import { Book, Play, Layers, Zap, ListChecks, Keyboard, Grid3x3, Volume2, Trophy, MessageSquare, Diameter, Brain } from 'lucide-react';
 import { api } from '../api';
 
 function HighScores({ scores }) {
@@ -23,7 +23,7 @@ function HighScores({ scores }) {
   );
 }
 
-export default function PracticeSelector({ sets, onStartGame, onStartFlashcard, onStartSpeedMatch, onStartQuiz, onStartTyping, onStartTypingBlitz, onStartMemory, onStartAudioQuiz, onStartSentenceScramble }) {
+export default function PracticeSelector({ sets, vocabulary, onStartGame, onStartFlashcard, onStartSpeedMatch, onStartQuiz, onStartTyping, onStartTypingBlitz, onStartMemory, onStartAudioQuiz, onStartSentenceScramble, onStartSrs }) {
   const [selectedSet, setSelectedSet] = useState(null);
   const [highScores, setHighScores] = useState([]);
   const [mode, setMode] = useState(null);
@@ -32,13 +32,27 @@ export default function PracticeSelector({ sets, onStartGame, onStartFlashcard, 
   const [questionCount, setQuestionCount] = useState(10);
   const [romajiMode, setRomajiMode] = useState(false);
 
+  const allVocabSet = {
+    id: 'all',
+    name: 'All Vocabulary',
+    wordIds: vocabulary.map(v => v.id),
+    sentenceIds: [],
+  };
+  const displaySets = [allVocabSet, ...sets];
+
   useEffect(() => {
     if (selectedSet) {
-      api.getAllHighScores(selectedSet.id).then(setHighScores).catch(() => setHighScores([]));
+      // Don't fetch high scores for the virtual 'all' set
+      if (selectedSet.id !== 'all') {
+        api.getAllHighScores(selectedSet.id).then(setHighScores).catch(() => setHighScores([]));
+      } else {
+        setHighScores([]);
+      }
     } else {
       setHighScores([]);
     }
   }, [selectedSet]);
+
 
   const handleStart = () => {
     if (selectedSet && mode) {
@@ -52,45 +66,75 @@ export default function PracticeSelector({ sets, onStartGame, onStartFlashcard, 
         case 'audioQuiz': onStartAudioQuiz(selectedSet, questionCount); break;
         case 'sentenceScramble': onStartSentenceScramble(selectedSet); break;
         case 'typingBlitz': onStartTypingBlitz(selectedSet, startingSide, romajiMode); break;
+        case 'srs': onStartSrs(selectedSet); break;
       }
     }
   };
 
-  const gameModes = [
-    { key: 'matching', name: 'Matching Game', desc: 'Match Japanese with English', icon: Layers, color: 'blue', content: 'words' },
-    { key: 'speedmatch', name: 'Speed Match', desc: 'Timed with combos!', icon: Zap, color: 'yellow', content: 'words' },
+  const wordGameModes = [
+    { key: 'srs', name: 'Spaced Repetition', desc: 'Review words due today', icon: Brain, color: 'cyan', content: 'words' },
     { key: 'flashcard', name: 'Flashcard Drill', desc: 'Study cards in random order', icon: Book, color: 'blue', content: 'words' },
     { key: 'quiz', name: 'Multiple Choice', desc: 'Choose the right answer', icon: ListChecks, color: 'green', content: 'words' },
     { key: 'typing', name: 'Typing Challenge', desc: 'Type the translation', icon: Keyboard, color: 'purple', content: 'words' },
+    { key: 'matching', name: 'Matching Game', desc: 'Match Japanese with English', icon: Layers, color: 'blue', content: 'words' },
+    { key: 'speedmatch', name: 'Speed Match', desc: 'Timed with combos!', icon: Zap, color: 'yellow', content: 'words' },
     { key: 'typingBlitz', name: 'Typing Blitz', desc: 'Falling words arcade game', icon: Diameter, color: 'red', content: 'words' },
     { key: 'memory', name: 'Memory Pairs', desc: 'Classic memory card game', icon: Grid3x3, color: 'pink', content: 'words' },
     { key: 'audioQuiz', name: 'Audio Quiz', desc: 'Listen and choose', icon: Volume2, color: 'teal', content: 'words' },
+  ];
+  const sentenceGameModes = [
     { key: 'sentenceScramble', name: 'Sentence Scramble', desc: 'Unscramble the sentence', icon: MessageSquare, color: 'indigo', content: 'sentences' },
   ];
+
+  const filteredWordGameModes = wordGameModes.filter(m => {
+    // Only show the SRS option if the 'All Vocabulary' set is selected.
+    if (m.key === 'srs') {
+      return selectedSet?.id === 'all';
+    }
+    return true;
+  });
+
 
   return (
     <div className="p-4 sm:p-6">
       <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Practice Mode</h2>
       <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
-        <h3 className="text-base sm:text-lg font-semibold mb-4">Select a Set</h3>
+        <h3 className="text-base sm:text-lg font-semibold mb-4">1. Select a Set</h3>
         <div className="space-y-2">
-          {sets.map((set) => (<button key={set.id} onClick={() => setSelectedSet(set)} className={`w-full p-4 rounded-lg text-left transition-all ${selectedSet?.id === set.id ? 'bg-blue-500 text-white' : 'bg-gray-50 hover:bg-gray-100'}`}><div className="font-semibold">{set.name}</div><div className="text-sm opacity-80">{(set.wordIds || []).length} words, {(set.sentenceIds || []).length} sentences</div></button>))}
+          {displaySets.map((set) => (<button key={set.id} onClick={() => setSelectedSet(set)} className={`w-full p-4 rounded-lg text-left transition-all ${selectedSet?.id === set.id ? 'bg-blue-500 text-white' : 'bg-gray-50 hover:bg-gray-100'}`}><div className="font-semibold">{set.name}</div><div className="text-sm opacity-80">{(set.wordIds || []).length} words, {(set.sentenceIds || []).length} sentences</div></button>))}
         </div>
-        {selectedSet && <HighScores scores={highScores} />}
+        {selectedSet && selectedSet.id !== 'all' && <HighScores scores={highScores} />}
       </div>
 
       {selectedSet && (
         <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
-          <h3 className="text-base sm:text-lg font-semibold mb-4">Select Practice Mode</h3>
+          <h3 className="text-base sm:text-lg font-semibold mb-4">2. Select Practice Mode</h3>
+
+          <h4 className="font-medium mb-3 text-gray-700">Vocabulary Practice</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {gameModes.map(m => {
-              const hasContent = (m.content === 'words' && (selectedSet.wordIds || []).length > 0) || (m.content === 'sentences' && (selectedSet.sentenceIds || []).length > 0);
+            {filteredWordGameModes.map(m => {
+              const hasContent = (selectedSet.wordIds || []).length > 0;
               return (
                 <button key={m.key} onClick={() => hasContent && setMode(m.key)} disabled={!hasContent} className={`p-4 rounded-lg border-2 transition-all text-center ${mode === m.key ? `border-${m.color}-500 bg-${m.color}-50` : 'border-gray-200'} ${hasContent ? 'hover:border-blue-300 cursor-pointer' : 'opacity-50 cursor-not-allowed bg-gray-50'}`}>
                   <m.icon className={`w-8 h-8 mb-2 mx-auto text-${m.color}-500`} />
                   <div className="font-semibold">{m.name}</div>
                   <div className="text-xs sm:text-sm text-gray-600">{m.desc}</div>
-                  {!hasContent && <div className="text-xs text-red-500 mt-1">(Needs {m.content})</div>}
+                  {!hasContent && <div className="text-xs text-red-500 mt-1">(Needs words)</div>}
+                </button>
+              );
+            })}
+          </div>
+
+          <h4 className="font-medium mt-6 mb-3 text-gray-700">Sentence Practice</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {sentenceGameModes.map(m => {
+              const hasContent = (selectedSet.sentenceIds || []).length > 0;
+              return (
+                <button key={m.key} onClick={() => hasContent && setMode(m.key)} disabled={!hasContent} className={`p-4 rounded-lg border-2 transition-all text-center ${mode === m.key ? `border-${m.color}-500 bg-${m.color}-50` : 'border-gray-200'} ${hasContent ? 'hover:border-blue-300 cursor-pointer' : 'opacity-50 cursor-not-allowed bg-gray-50'}`}>
+                  <m.icon className={`w-8 h-8 mb-2 mx-auto text-${m.color}-500`} />
+                  <div className="font-semibold">{m.name}</div>
+                  <div className="text-xs sm:text-sm text-gray-600">{m.desc}</div>
+                  {!hasContent && <div className="text-xs text-red-500 mt-1">(Needs sentences)</div>}
                 </button>
               );
             })}
@@ -193,7 +237,11 @@ export default function PracticeSelector({ sets, onStartGame, onStartFlashcard, 
             </div>
           )}
           
-          <button onClick={handleStart} className="w-full bg-green-500 text-white py-3 sm:py-4 rounded-lg hover:bg-green-600 text-base sm:text-lg font-semibold flex items-center justify-center gap-2"><Play size={24} /> Start Practice</button>
+          {(mode !== 'srs') ? (
+            <button onClick={handleStart} className="w-full bg-green-500 text-white py-3 sm:py-4 rounded-lg hover:bg-green-600 text-base sm:text-lg font-semibold flex items-center justify-center gap-2"><Play size={24} /> Start Practice</button>
+          ) : (
+             <button onClick={handleStart} className="w-full bg-cyan-500 text-white py-3 sm:py-4 rounded-lg hover:bg-cyan-600 text-base sm:text-lg font-semibold flex items-center justify-center gap-2"><Brain size={24} /> Start SRS Review</button>
+          )}
         </>
       )}
     </div>

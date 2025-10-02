@@ -18,6 +18,7 @@ import Statistics from './components/Statistics';
 import ImportExport from './components/ImportExport';
 import ReloadPrompt from './ReloadPrompt';
 import TypingBlitz from './components/TypingBlitz';
+import SrsPractice from './components/SrsPractice';
 
 export default function JapaneseVocabApp() {
   const [vocabulary, setVocabulary] = useState([]);
@@ -60,6 +61,7 @@ export default function JapaneseVocabApp() {
     audioQuiz: <AudioQuiz set={activeSet} vocabulary={vocabulary} questionCount={questionCount} onExit={exitGame} />,
     sentenceScramble: <SentenceScramble set={activeSet} sentences={sentences} onExit={exitGame} />,
     typingBlitz: <TypingBlitz set={activeSet} vocabulary={vocabulary} onExit={exitGame} fallingLanguage={flashcardStartingSide} romajiMode={romajiMode} />,
+    srs: <SrsPractice set={activeSet} onExit={exitGame} />,
   };
 
   if (activeGame && activeSet && gameComponents[activeGame]) {
@@ -103,6 +105,7 @@ export default function JapaneseVocabApp() {
             {currentView === 'practice' && (
               <PracticeSelector
                 sets={sets}
+                vocabulary={vocabulary}
                 onStartGame={(set, reps) => { setActiveSet(set); setGameRepetitions(reps); setActiveGame('matching'); }}
                 onStartSpeedMatch={(set, reps) => { setActiveSet(set); setGameRepetitions(reps); setActiveGame('speedmatch'); }}
                 onStartFlashcard={(set, side) => { setActiveSet(set); setFlashcardStartingSide(side); setActiveGame('flashcard'); }}
@@ -112,6 +115,7 @@ export default function JapaneseVocabApp() {
                 onStartMemory={(set) => { setActiveSet(set); setActiveGame('memory'); }}
                 onStartAudioQuiz={(set, count) => { setActiveSet(set); setQuestionCount(count); setActiveGame('audioQuiz'); }}
                 onStartSentenceScramble={(set) => { setActiveSet(set); setActiveGame('sentenceScramble'); }}
+                onStartSrs={(set) => { setActiveSet(set); setActiveGame('srs'); }}
               />
             )}
             {currentView === 'stats' && <Statistics />}

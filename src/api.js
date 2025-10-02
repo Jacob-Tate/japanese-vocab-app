@@ -110,5 +110,34 @@ export const api = {
   async getGameStatistics() {
     const response = await fetch(`${API_URL}/game-statistics`);
     return response.json();
+  },
+
+  // SRS API
+  async getDueSrsWords(setId) {
+    const response = await fetch(`${API_URL}/srs/due?setId=${setId || 'all'}`);
+    return response.json();
+  },
+
+  async postSrsReview(wordId, quality) {
+    const response = await fetch(`${API_URL}/srs/review`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wordId, quality })
+    });
+    return response.json();
+  },
+
+  async getSrsStats(setId) {
+    const response = await fetch(`${API_URL}/srs/stats?setId=${setId || 'all'}`);
+    return response.json();
+  },
+  
+  async resetSrsData(wordId = null) {
+    const response = await fetch(`${API_URL}/srs`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wordId }) // wordId will be null for global reset
+    });
+    return response.json();
   }
 };

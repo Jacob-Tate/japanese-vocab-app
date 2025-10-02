@@ -90,6 +90,20 @@ db.serialize(() => {
       FOREIGN KEY (set_id) REFERENCES sets(id) ON DELETE CASCADE
     )
   `);
+
+  // NEW: SRS data table
+  db.run(`
+    CREATE TABLE IF NOT EXISTS srs_data (
+      word_id INTEGER PRIMARY KEY,
+      due_date DATETIME NOT NULL,
+      interval_days INTEGER DEFAULT 1,
+      ease_factor REAL DEFAULT 2.5,
+      repetitions INTEGER DEFAULT 0,
+      lapses INTEGER DEFAULT 0,
+      last_reviewed DATETIME,
+      FOREIGN KEY (word_id) REFERENCES vocabulary(id) ON DELETE CASCADE
+    )
+  `);
 });
 
 // Database operations
@@ -102,7 +116,22 @@ export const dbOps = {
   },
   getAllVocab() {
     return new Promise((resolve, reject) => {
-      db.all('SELECT * FROM vocabulary ORDER BY id DESC', (err, rows) => { if (err) reject(err); else resolve(rows); });
+      const query = `
+        SELECT
+          v.id,
+          v.japanese,
+          v.english,
+          v.created_at,
+          srs.due_date,
+          srs.repetitions
+        FROM vocabulary v
+        LEFT JOIN srs_data srs ON v.id = srs.word_id
+        ORDER BY v.id DESC
+      `;
+      db.all(query, (err, rows) => { 
+        if (err) reject(err); 
+        else resolve(rows); 
+      });
     });
   },
   deleteVocab(id) {
@@ -241,7 +270,7 @@ export const dbOps = {
     });
   },
 
-  // NEW: Game history operations (every game session)
+  // Game history operations (every game session)
   saveGameSession(setId, gameMode, score, metadata = null) {
     return new Promise((resolve, reject) => {
       db.run('INSERT INTO game_history (set_id, game_mode, score, metadata) VALUES (?, ?, ?, ?)', 
@@ -253,25 +282,16 @@ export const dbOps = {
       );
     });
   },
-  
   getAllGameSessions() {
     return new Promise((resolve, reject) => {
-      db.all('SELECT * FROM game_history ORDER BY played_at DESC', (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
+      db.all('SELECT * FROM game_history ORDER BY played_at DESC', (err, rows) => { if (err) reject(err); else resolve(rows); });
     });
   },
-
   getGameSessionsBySet(setId) {
     return new Promise((resolve, reject) => {
-      db.all('SELECT * FROM game_history WHERE set_id = ? ORDER BY played_at DESC', [setId], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
+      db.all('SELECT * FROM game_history WHERE set_id = ? ORDER BY played_at DESC', [setId], (err, rows) => { if (err) reject(err); else resolve(rows); });
     });
   },
-
   getGameStatistics() {
     return new Promise((resolve, reject) => {
       db.all(`
@@ -284,10 +304,122 @@ export const dbOps = {
           MIN(score) as worst_score
         FROM game_history 
         GROUP BY game_mode
-      `, (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
+      `, (err, rows) => { if (err) reject(err); else resolve(rows); });
+    });
+  },
+
+  // SRS operations
+  getDueSrsWords(setId, limit = 20) {
+    return new Promise((resolve, reject) => {
+      const today = new Date().toISOString();
+      let query;
+      let params;
+      if (setId) {
+        query = `
+          SELECT v.* FROM vocabulary v
+          JOIN set_words sw ON v.id = sw.word_id
+          LEFT JOIN srs_data srs ON v.id = srs.word_id
+          WHERE sw.set_id = ? AND (srs.word_id IS NULL OR srs.due_date <= ?)
+          ORDER BY srs.due_date ASC, RANDOM()
+          LIMIT ?
+        `;
+        params = [setId, today, limit];
+      } else {
+        query = `
+          SELECT v.* FROM vocabulary v
+          LEFT JOIN srs_data srs ON v.id = srs.word_id
+          WHERE srs.word_id IS NULL OR srs.due_date <= ?
+          ORDER BY srs.due_date ASC, RANDOM()
+          LIMIT ?
+        `;
+        params = [today, limit];
+      }
+      db.all(query, params, (err, rows) => { if (err) reject(err); else resolve(rows); });
+    });
+  },
+  
+  updateSrsReview(wordId, quality) {
+    return new Promise((resolve, reject) => {
+      db.get('SELECT * FROM srs_data WHERE word_id = ?', [wordId], (err, row) => {
+        if (err) return reject(err);
+        let { ease_factor = 2.5, interval_days = 0, repetitions = 0, lapses = 0 } = row || {};
+        if (quality === 'correct') {
+          repetitions += 1;
+          if (repetitions === 1) {
+            interval_days = 1;
+          } else if (repetitions === 2) {
+            interval_days = 6;
+          } else {
+            interval_days = Math.ceil(interval_days * ease_factor);
+          }
+          ease_factor += 0.1;
+        } else {
+          lapses += 1;
+          repetitions = 0;
+          interval_days = 1;
+          ease_factor = Math.max(1.3, ease_factor - 0.2);
+        }
+        interval_days = Math.min(interval_days, 365);
+        ease_factor = Math.max(1.3, Math.min(ease_factor, 2.5));
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + interval_days);
+        const lastReviewed = new Date().toISOString();
+        if (row) {
+          db.run(`UPDATE srs_data SET due_date = ?, interval_days = ?, ease_factor = ?, repetitions = ?, lapses = ?, last_reviewed = ? WHERE word_id = ?`, [dueDate.toISOString(), interval_days, ease_factor, repetitions, lapses, lastReviewed, wordId], (err) => { if (err) reject(err); else resolve(); });
+        } else {
+          db.run(`INSERT INTO srs_data (word_id, due_date, interval_days, ease_factor, repetitions, lapses, last_reviewed) VALUES (?, ?, ?, ?, ?, ?, ?)`, [wordId, dueDate.toISOString(), interval_days, ease_factor, repetitions, lapses, lastReviewed], (err) => { if (err) reject(err); else resolve(); });
+        }
       });
+    });
+  },
+  
+  getSrsStats(setId) {
+    return new Promise((resolve, reject) => {
+      const today = new Date().toISOString();
+      let whereClause = '';
+      const params = [today];
+      if (setId) {
+        whereClause = 'AND v.id IN (SELECT word_id FROM set_words WHERE set_id = ?)';
+        params.push(setId);
+      }
+      const query = `
+        SELECT
+          COUNT(CASE WHEN srs.word_id IS NULL THEN 1 END) as new_count,
+          COUNT(CASE WHEN srs.due_date <= ? THEN 1 END) as due_count
+        FROM vocabulary v
+        LEFT JOIN srs_data srs ON v.id = srs.word_id
+        WHERE 1=1 ${whereClause}
+      `;
+      db.get(query, params, (err, row) => {
+        if (err) return reject(err);
+        let totalQuery;
+        let totalParams = [];
+        if (setId) {
+          totalQuery = `SELECT COUNT(*) as total FROM set_words WHERE set_id = ?`;
+          totalParams = [setId];
+        } else {
+          totalQuery = `SELECT COUNT(*) as total FROM vocabulary`;
+        }
+        db.get(totalQuery, totalParams, (errTotal, rowTotal) => {
+          if (errTotal) return reject(errTotal);
+          resolve({ ...row, total_words: rowTotal.total });
+        });
+      });
+    });
+  },
+
+  // NEW: Reset SRS data
+  resetSrsData(wordId = null) {
+    return new Promise((resolve, reject) => {
+      if (wordId) {
+        db.run('DELETE FROM srs_data WHERE word_id = ?', [wordId], (err) => {
+          if (err) reject(err); else resolve();
+        });
+      } else {
+        db.run('DELETE FROM srs_data', [], (err) => {
+          if (err) reject(err); else resolve();
+        });
+      }
     });
   }
 };
