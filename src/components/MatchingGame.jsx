@@ -1,5 +1,7 @@
+// src/components/MatchingGame.jsx
 import React, { useState, useEffect } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Trophy } from 'lucide-react';
+import { api } from '../api';
 
 export default function MatchingGame({ set, vocabulary, onExit, repetitions = 3 }) {
   const [gameWords, setGameWords] = useState([]);
@@ -11,31 +13,66 @@ export default function MatchingGame({ set, vocabulary, onExit, repetitions = 3 
   const [grayedOut, setGrayedOut] = useState([]);
   const [wrongMatch, setWrongMatch] = useState(false);
   const [score, setScore] = useState(0);
+  const [highScore, setHighScore] = useState(0);
+  const [isNewHighScore, setIsNewHighScore] = useState(false);
 
   useEffect(() => {
     initGame();
+    loadHighScore();
   }, []);
+
+  const loadHighScore = async () => {
+    try {
+      const result = await api.getHighScore(set.id, 'matching');
+      if (result) {
+        setHighScore(result.score);
+      }
+    } catch (error) {
+      console.error('Failed to load high score:', error);
+    }
+  };
+
+  const saveGameCompletion = async (finalScore) => {
+    // Always save the game session for statistics
+    try {
+      await api.saveGameSession(set.id, 'matching', finalScore, { repetitions });
+    } catch (error) {
+      console.error('Failed to save game session:', error);
+    }
+
+    // Check if it's a new high score
+    if (!highScore || finalScore > highScore) {
+      try {
+        await api.saveHighScore(set.id, 'matching', finalScore, { repetitions });
+        setHighScore(finalScore);
+        setIsNewHighScore(true);
+      } catch (error) {
+        console.error('Failed to save high score:', error);
+      }
+    }
+  };
 
   const initGame = () => {
     const words = vocabulary.filter(v => set.wordIds.includes(v.id));
-    
+        
     const expanded = [];
     words.forEach(word => {
       for (let i = 0; i < repetitions; i++) {
         expanded.push({ ...word, instanceId: `${word.id}-${i}` });
       }
     });
-    
+        
     setGameWords(expanded);
     setMatched([]);
     setGrayedOut([]);
     setScore(0);
+    setIsNewHighScore(false);
     loadNextPairs(expanded, []);
   };
 
   const loadNextPairs = (wordsPool, currentMatched) => {
     const available = wordsPool.filter(w => !currentMatched.includes(w.instanceId));
-    
+        
     if (available.length === 0) {
       return;
     }
@@ -44,7 +81,7 @@ export default function MatchingGame({ set, vocabulary, onExit, repetitions = 3 
 
     const uniqueWords = [];
     const seenIds = new Set();
-    
+        
     for (const word of shuffledAvailable) {
       if (!seenIds.has(word.id)) {
         seenIds.add(word.id);
@@ -52,13 +89,13 @@ export default function MatchingGame({ set, vocabulary, onExit, repetitions = 3 
         if (uniqueWords.length >= 5) break;
       }
     }
-    
+        
     const newLeftItems = uniqueWords.map(w => ({
       instanceId: w.instanceId,
       text: w.japanese,
       id: w.id
     }));
-    
+        
     const newRightItems = uniqueWords.map(w => ({
       instanceId: w.instanceId,
       text: w.english,
@@ -89,53 +126,55 @@ export default function MatchingGame({ set, vocabulary, onExit, repetitions = 3 
     if (left.id === right.id) {
       const newMatched = [...matched, left.instanceId, right.instanceId];
       const newGrayedOut = [...grayedOut, left.instanceId, right.instanceId];
+      const newScore = score + 1;
       setMatched(newMatched);
-      setScore(score + 1);
-      
+      setScore(newScore);
+            
       const available = gameWords.filter(w => !newMatched.includes(w.instanceId));
-      
+            
       setTimeout(() => {
         setSelectedLeft(null);
         setSelectedRight(null);
-        
+                
         if (available.length === 0) {
-          // Game complete - clear all items from screen
+          // Game complete - save session and check high score
           setLeftItems([]);
           setRightItems([]);
           setGrayedOut([]);
+          saveGameCompletion(newScore);
           return;
         }
-        
+                
         setGrayedOut(newGrayedOut);
-        
+                
         if (newGrayedOut.length >= 6) {
           const remainingLeft = leftItems.filter(i => !newGrayedOut.includes(i.instanceId));
           const remainingRight = rightItems.filter(i => !newGrayedOut.includes(i.instanceId));
-          
+                    
           const shuffledAvailable = [...available].sort(() => Math.random() - 0.5);
           const currentWordIds = new Set([...remainingLeft, ...remainingRight].map(item => item.id));
           const newWords = [];
           const newWordIds = new Set();
-          
+                    
           for (const word of shuffledAvailable) {
             if (!currentWordIds.has(word.id) && !newWordIds.has(word.id) && newWords.length < 3) {
               newWords.push(word);
               newWordIds.add(word.id);
             }
           }
-          
+                    
           const newLeftItems = newWords.map(w => ({
             instanceId: w.instanceId,
             text: w.japanese,
             id: w.id
           }));
-          
+                    
           const newRightItems = newWords.map(w => ({
             instanceId: w.instanceId,
             text: w.english,
             id: w.id
           }));
-          
+                    
           setLeftItems([...remainingLeft, ...newLeftItems].sort(() => Math.random() - 0.5));
           setRightItems([...remainingRight, ...newRightItems].sort(() => Math.random() - 0.5));
           setGrayedOut([]);
@@ -167,15 +206,26 @@ export default function MatchingGame({ set, vocabulary, onExit, repetitions = 3 
       </div>
 
       <div className="mb-4 text-sm sm:text-lg">
-        Score: <span className="font-bold text-blue-600">{score}</span> | 
-        Remaining: <span className="font-bold">{remainingWords}</span> | 
+        Score: <span className="font-bold text-blue-600">{score}</span> |
+        Remaining: <span className="font-bold">{remainingWords}</span> |
         Showing: <span className="font-bold">{leftItems.length}</span>
+        {highScore > 0 && (
+          <span className="ml-4 flex items-center gap-1 inline-flex">
+            <Trophy size={18} className="text-yellow-500" />
+            Best: <span className="font-bold text-purple-600">{highScore}</span>
+          </span>
+        )}
       </div>
 
       {isGameComplete ? (
         <div className="bg-green-100 border-2 border-green-500 rounded-lg p-6 sm:p-8 text-center">
-          <h3 className="text-2xl sm:text-3xl font-bold text-green-700 mb-4">🎉 Complete!</h3>
-          <p className="text-lg sm:text-xl mb-4">Final Score: {score}</p>
+          <h3 className="text-2xl sm:text-3xl font-bold text-green-700 mb-4">Complete!</h3>
+          <p className="text-lg sm:text-xl mb-2">Final Score: {score}</p>
+          {isNewHighScore && (
+            <p className="text-yellow-600 font-bold mb-4 flex items-center justify-center gap-2">
+              <Trophy size={24} /> New High Score!
+            </p>
+          )}
           <button
             onClick={initGame}
             className="bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 flex items-center gap-2 mx-auto"

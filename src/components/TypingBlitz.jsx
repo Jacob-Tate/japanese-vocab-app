@@ -1,11 +1,12 @@
 // src/components/TypingBlitz.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { RotateCcw, Zap } from 'lucide-react';
+import { RotateCcw, Zap, Trophy } from 'lucide-react';
+import { api } from '../api';
 
 const GAME_WIDTH = 800;
 const GAME_HEIGHT = 500;
 const WORD_SPEED = 0.5;
-const INPUT_AREA_HEIGHT = 120; // Increased height for romaji preview
+const INPUT_AREA_HEIGHT = 120;
 
 export default function TypingBlitz({ set, vocabulary, onExit, fallingLanguage = 'japanese', romajiMode = false }) {
   const [userInput, setUserInput] = useState('');
@@ -15,7 +16,9 @@ export default function TypingBlitz({ set, vocabulary, onExit, fallingLanguage =
     lives: 5,
     isGameOver: false,
   });
-  
+  const [highScore, setHighScore] = useState(0);
+  const [isNewHighScore, setIsNewHighScore] = useState(false);
+    
   const targetLanguage = fallingLanguage === 'japanese' ? 'english' : 'japanese';
   const gameStateRef = useRef(gameState);
   const gameLoopRef = useRef();
@@ -24,6 +27,41 @@ export default function TypingBlitz({ set, vocabulary, onExit, fallingLanguage =
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
+
+  useEffect(() => {
+    loadHighScore();
+  }, []);
+
+  const loadHighScore = async () => {
+    try {
+      const result = await api.getHighScore(set.id, 'typing_blitz');
+      if (result) {
+        setHighScore(result.score);
+      }
+    } catch (error) {
+      console.error('Failed to load high score:', error);
+    }
+  };
+
+  const saveGameCompletion = async (finalScore) => {
+    // Always save the game session for statistics
+    try {
+      await api.saveGameSession(set.id, 'typing_blitz', finalScore, { fallingLanguage, romajiMode });
+    } catch (error) {
+      console.error('Failed to save game session:', error);
+    }
+
+    // Check if it's a new high score
+    if (finalScore > highScore) {
+      try {
+        await api.saveHighScore(set.id, 'typing_blitz', finalScore, { fallingLanguage, romajiMode });
+        setHighScore(finalScore);
+        setIsNewHighScore(true);
+      } catch (error) {
+        console.error('Failed to save high score:', error);
+      }
+    }
+  };
 
   const createWord = () => {
     const wordsInSet = vocabulary.filter(v => set.wordIds.includes(v.id));
@@ -37,7 +75,7 @@ export default function TypingBlitz({ set, vocabulary, onExit, fallingLanguage =
       y: -20,
     };
   };
-  
+    
   const startGame = () => {
     const firstWord = createWord();
     setGameState({
@@ -47,6 +85,7 @@ export default function TypingBlitz({ set, vocabulary, onExit, fallingLanguage =
       isGameOver: false,
     });
     setUserInput('');
+    setIsNewHighScore(false);
     inputRef.current?.focus();
   };
 
@@ -56,7 +95,7 @@ export default function TypingBlitz({ set, vocabulary, onExit, fallingLanguage =
 
   useEffect(() => {
     if (gameState.isGameOver) return;
-    
+        
     const wordInterval = setInterval(() => {
       const newWord = createWord();
       if (newWord) {
@@ -72,7 +111,7 @@ export default function TypingBlitz({ set, vocabulary, onExit, fallingLanguage =
       if (gameStateRef.current.isGameOver) {
         return;
       }
-      
+            
       let livesLost = 0;
       const updatedWords = gameStateRef.current.words
         .map(word => ({ ...word, y: word.y + WORD_SPEED }))
@@ -87,6 +126,9 @@ export default function TypingBlitz({ set, vocabulary, onExit, fallingLanguage =
       if (livesLost > 0) {
         const newLives = gameStateRef.current.lives - livesLost;
         const isGameOver = newLives <= 0;
+        if (isGameOver) {
+          saveGameCompletion(gameStateRef.current.score);
+        }
         setGameState(prev => ({
           ...prev,
           words: updatedWords,
@@ -113,7 +155,7 @@ export default function TypingBlitz({ set, vocabulary, onExit, fallingLanguage =
 
     if (targetLanguage === 'english') {
       matchedWord = gameState.words.find(w => w.english.toLowerCase() === typed.toLowerCase());
-    } else { // japanese
+    } else {
       let processedInput = typed;
       if (romajiMode && wanakana) {
         processedInput = wanakana.toHiragana(typed, { passRomaji: true });
@@ -123,11 +165,12 @@ export default function TypingBlitz({ set, vocabulary, onExit, fallingLanguage =
         (wanakana && wanakana.toHiragana(w.japanese) === processedInput)
       );
     }
-    
+        
     if (matchedWord) {
+      const newScore = gameState.score + 10;
       setGameState(prev => ({
         ...prev,
-        score: prev.score + 10,
+        score: newScore,
         words: prev.words.filter(word => word.id !== matchedWord.id),
       }));
       setUserInput('');
@@ -144,12 +187,24 @@ export default function TypingBlitz({ set, vocabulary, onExit, fallingLanguage =
       <div className="flex justify-around mb-4 bg-white p-3 rounded-lg shadow">
         <div className="text-lg">Score: <span className="font-bold text-green-600">{gameState.score}</span></div>
         <div className="text-lg">Lives: <span className="font-bold text-red-600">{'❤️'.repeat(Math.max(0, gameState.lives))}</span></div>
+        {highScore > 0 && (
+          <div className="text-lg flex items-center gap-1">
+            <Trophy size={20} className="text-yellow-500" />
+            <span className="font-bold text-purple-600">{highScore}</span>
+          </div>
+        )}
       </div>
 
       {gameState.isGameOver ? (
         <div className="flex flex-col justify-center items-center bg-white rounded-lg shadow-lg p-8 text-center" style={{ width: GAME_WIDTH, height: GAME_HEIGHT, maxWidth: '100%' }}>
           <h3 className="text-3xl font-bold mb-4">Game Over!</h3>
-          <p className="text-xl mb-6">Final Score: {gameState.score}</p>
+          <p className="text-xl mb-2">Final Score: {gameState.score}</p>
+          {highScore > 0 && <p className="text-sm mb-4">High Score: {highScore}</p>}
+          {isNewHighScore && (
+            <p className="text-yellow-600 font-bold mb-4 flex items-center justify-center gap-2">
+              <Trophy size={24} /> New High Score!
+            </p>
+          )}
           <button onClick={startGame} className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 flex items-center gap-2 mx-auto"><RotateCcw /> Play Again</button>
         </div>
       ) : (

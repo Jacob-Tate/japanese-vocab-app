@@ -11,6 +11,7 @@ export default function MemoryPairs({ set, vocabulary, onExit }) {
   const [isComplete, setIsComplete] = useState(false);
   const [gridSize, setGridSize] = useState(4);
   const [bestScore, setBestScore] = useState(null);
+  const [isNewBest, setIsNewBest] = useState(false);
 
   useEffect(() => {
     initGame();
@@ -19,8 +20,7 @@ export default function MemoryPairs({ set, vocabulary, onExit }) {
   useEffect(() => {
     loadHighScore();
   }, [gridSize, set.id]);
-
-
+    
   const loadHighScore = async () => {
     try {
       const result = await api.getHighScore(set.id, 'memory');
@@ -40,11 +40,20 @@ export default function MemoryPairs({ set, vocabulary, onExit }) {
     }
   };
 
-  const saveHighScoreIfNeeded = async (finalMoves) => {
+  const saveGameCompletion = async (finalMoves) => {
+    // Always save the game session for statistics
+    try {
+      await api.saveGameSession(set.id, 'memory', finalMoves, { gridSize });
+    } catch (error) {
+      console.error('Failed to save game session:', error);
+    }
+
+    // Check if it's a new best score (lower is better for memory game)
     if (!bestScore || finalMoves < bestScore) {
       try {
         await api.saveHighScore(set.id, 'memory', finalMoves, { gridSize });
         setBestScore(finalMoves);
+        setIsNewBest(true);
       } catch (error) {
         console.error('Failed to save high score:', error);
       }
@@ -54,12 +63,12 @@ export default function MemoryPairs({ set, vocabulary, onExit }) {
   const initGame = () => {
     const words = vocabulary.filter(v => set.wordIds.includes(v.id));
     const pairsNeeded = (gridSize * gridSize) / 2;
-    
+        
     if (words.length < pairsNeeded) {
-        setCards([]); // Not enough words
+        setCards([]);
         return;
     }
-    
+        
     const selectedWords = [...words].sort(() => 0.5 - Math.random()).slice(0, pairsNeeded);
 
     const gameCards = [];
@@ -86,6 +95,7 @@ export default function MemoryPairs({ set, vocabulary, onExit }) {
     setMatchedCards([]);
     setMoves(0);
     setIsComplete(false);
+    setIsNewBest(false);
   };
 
   const handleCardClick = (cardId) => {
@@ -114,7 +124,7 @@ export default function MemoryPairs({ set, vocabulary, onExit }) {
 
           if (newMatched.length === cards.length) {
             setIsComplete(true);
-            saveHighScoreIfNeeded(currentMoves);
+            saveGameCompletion(currentMoves);
           }
         }, 500);
       } else {
@@ -132,7 +142,7 @@ export default function MemoryPairs({ set, vocabulary, onExit }) {
   const isCardMatched = (cardId) => {
     return matchedCards.includes(cardId);
   };
-  
+    
   const pairsNeeded = (gridSize * gridSize) / 2;
   const hasEnoughWords = vocabulary.filter(v => set.wordIds.includes(v.id)).length >= pairsNeeded;
 
@@ -195,10 +205,12 @@ export default function MemoryPairs({ set, vocabulary, onExit }) {
 
       {isComplete ? (
         <div className="bg-gradient-to-br from-green-100 to-blue-100 border-2 border-green-500 rounded-lg p-6 sm:p-8 text-center">
-          <h3 className="text-2xl sm:text-3xl font-bold text-green-700 mb-4">🎉 Complete!</h3>
+          <h3 className="text-2xl sm:text-3xl font-bold text-green-700 mb-4">Complete!</h3>
           <p className="text-xl mb-2">Total Moves: <span className="font-bold">{moves}</span></p>
-          {moves === bestScore && (
-            <p className="text-yellow-600 font-bold mb-4">🏆 New Best Score!</p>
+          {isNewBest && (
+            <p className="text-yellow-600 font-bold mb-4 flex items-center justify-center gap-2">
+              <Trophy size={24} /> New Best Score!
+            </p>
           )}
           <button
             onClick={initGame}
@@ -208,9 +220,9 @@ export default function MemoryPairs({ set, vocabulary, onExit }) {
           </button>
         </div>
       ) : (
-        <div 
+        <div
           className={`grid gap-2 sm:gap-3 mx-auto max-w-4xl`}
-          style={{ 
+          style={{
             gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
           }}
         >

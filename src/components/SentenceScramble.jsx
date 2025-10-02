@@ -1,45 +1,67 @@
 // src/components/SentenceScramble.jsx
 import React, { useState, useEffect } from 'react';
-import { RotateCcw, CheckCircle, XCircle } from 'lucide-react';
+import { RotateCcw, CheckCircle, XCircle, Trophy } from 'lucide-react';
+import { api } from '../api';
 
-/**
- * A more intelligent tokenizer for Japanese sentences that splits by common particles.
- * @param {string} sentence The Japanese sentence to tokenize.
- * @returns {string[]} An array of tokens (words and particles).
- */
 const tokenizeJapanese = (sentence) => {
   if (!sentence) return [];
-  
-  // Common particles to split by. This list can be expanded.
+    
   const particles = ['は', 'が', 'を', 'に', 'へ', 'で', 'と', 'も', 'の'];
-  
-  // Create a regex that splits the string by the particles, but keeps them in the result.
-  // e.g., "私は学生です" with particle "は" becomes ["私", "は", "学生です"]
   const regex = new RegExp(`(${particles.join('|')})`, 'g');
-  
+    
   const tokens = sentence
-    .split(regex) // Split the sentence by the particles
-    .filter(Boolean); // Filter out any empty strings that may result from the split
-
-  // Sometimes, a word might end where a particle begins, creating a token like ["学生", "です"].
-  // We can further process this, but for now, this is a huge improvement.
-  // A more advanced step could involve checking for verb conjugations, but this covers the core particle issue.
+    .split(regex)
+    .filter(Boolean);
+  
   return tokens;
 };
-
-
+ 
 export default function SentenceScramble({ set, sentences, onExit }) {
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [wordBank, setWordBank] = useState([]);
   const [answer, setAnswer] = useState([]);
-  const [feedback, setFeedback] = useState(null); // null, 'correct', 'wrong'
+  const [feedback, setFeedback] = useState(null);
   const [score, setScore] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
+  const [highScore, setHighScore] = useState(0);
+  const [isNewHighScore, setIsNewHighScore] = useState(false);
 
   useEffect(() => {
     initGame();
+    loadHighScore();
   }, []);
+
+  const loadHighScore = async () => {
+    try {
+      const result = await api.getHighScore(set.id, 'sentence_scramble');
+      if (result) {
+        setHighScore(result.score);
+      }
+    } catch (error) {
+      console.error('Failed to load high score:', error);
+    }
+  };
+
+  const saveGameCompletion = async (finalScore) => {
+    // Always save the game session for statistics
+    try {
+      await api.saveGameSession(set.id, 'sentence_scramble', finalScore);
+    } catch (error) {
+      console.error('Failed to save game session:', error);
+    }
+
+    // Check if it's a new high score
+    if (finalScore > highScore) {
+      try {
+        await api.saveHighScore(set.id, 'sentence_scramble', finalScore);
+        setHighScore(finalScore);
+        setIsNewHighScore(true);
+      } catch (error) {
+        console.error('Failed to save high score:', error);
+      }
+    }
+  };
 
   const initGame = () => {
     const gameSentences = sentences.filter(s => (set.sentenceIds || []).includes(s.id));
@@ -48,19 +70,19 @@ export default function SentenceScramble({ set, sentences, onExit }) {
     setCurrentIndex(0);
     setScore(0);
     setIsComplete(false);
+    setIsNewHighScore(false);
     if (shuffled.length > 0) {
       setupQuestion(shuffled[0]);
     }
   };
 
   const setupQuestion = (sentence) => {
-    // Use our new, smarter tokenizer!
     const tokens = tokenizeJapanese(sentence.japanese);
     setWordBank(tokens.sort(() => Math.random() - 0.5));
     setAnswer([]);
     setFeedback(null);
   };
-  
+    
   const handleWordBankClick = (word, index) => {
     setWordBank(wordBank.filter((_, i) => i !== index));
     setAnswer([...answer, word]);
@@ -75,24 +97,28 @@ export default function SentenceScramble({ set, sentences, onExit }) {
     const userAnswer = answer.join('');
     const correctAnswer = questions[currentIndex].japanese;
     if (userAnswer === correctAnswer) {
+      const newScore = score + 10;
+      setScore(newScore);
       setFeedback('correct');
-      setScore(score + 10);
-      setTimeout(nextQuestion, 1500);
+      setTimeout(() => {
+        nextQuestion(newScore);
+      }, 1500);
     } else {
       setFeedback('wrong');
     }
   };
 
-  const nextQuestion = () => {
+  const nextQuestion = (currentScore) => {
     if (currentIndex < questions.length - 1) {
       const nextIndex = currentIndex + 1;
       setCurrentIndex(nextIndex);
       setupQuestion(questions[nextIndex]);
     } else {
       setIsComplete(true);
+      saveGameCompletion(currentScore);
     }
   };
-  
+    
   if (questions.length === 0) {
     return (
       <div className="p-4 sm:p-6 text-center">
@@ -102,12 +128,18 @@ export default function SentenceScramble({ set, sentences, onExit }) {
       </div>
     );
   }
-  
+    
   if (isComplete) {
-     return (
+    return (
       <div className="p-4 sm:p-6 text-center">
         <h2 className="text-xl sm:text-2xl font-bold mb-4">Well Done!</h2>
-        <p className="text-lg mb-4">Final Score: <span className="font-bold text-green-600">{score}</span></p>
+        <p className="text-lg mb-2">Final Score: <span className="font-bold text-green-600">{score}</span></p>
+        {highScore > 0 && <p className="text-sm mb-4">High Score: {highScore}</p>}
+        {isNewHighScore && (
+          <p className="text-yellow-600 font-bold mb-4 flex items-center justify-center gap-2">
+            <Trophy size={24} /> New High Score!
+          </p>
+        )}
         <button onClick={initGame} className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 flex items-center gap-2 mx-auto">
           <RotateCcw size={20} /> Play Again
         </button>
@@ -124,17 +156,25 @@ export default function SentenceScramble({ set, sentences, onExit }) {
         <h2 className="text-xl sm:text-2xl font-bold">Sentence Scramble: {set.name}</h2>
         <button onClick={onExit} className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Exit</button>
       </div>
-      
+            
       <div className="mb-4">
         <div className="flex justify-between text-sm text-gray-600 mb-2">
           <span>Question {currentIndex + 1} of {questions.length}</span>
-          <span>Score: {score}</span>
+          <div className="flex items-center gap-4">
+            <span>Score: {score}</span>
+            {highScore > 0 && (
+              <span className="flex items-center gap-1">
+                <Trophy size={16} className="text-yellow-500" />
+                {highScore}
+              </span>
+            )}
+          </div>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${progress}%` }}/>
         </div>
       </div>
-      
+            
       <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8">
         <p className="text-gray-600 mb-2">Translate and unscramble:</p>
         <h3 className="text-2xl font-semibold mb-6 text-center">{questions[currentIndex].english}</h3>
@@ -151,11 +191,11 @@ export default function SentenceScramble({ set, sentences, onExit }) {
             </div>
           )}
         </div>
-        
+                
         <div className="border-t-2 border-dashed my-4"></div>
 
         <div className="min-h-[6rem] p-3 flex flex-wrap items-center justify-center gap-2 mb-6">
-           {wordBank.map((word, index) => (
+          {wordBank.map((word, index) => (
             <button key={index} onClick={() => handleWordBankClick(word, index)} className="bg-gray-200 hover:bg-gray-300 px-3 py-2 rounded-lg text-lg">
               {word}
             </button>

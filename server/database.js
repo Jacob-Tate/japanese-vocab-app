@@ -23,7 +23,7 @@ db.serialize(() => {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
-
+  
   // Sentences table
   db.run(`
     CREATE TABLE IF NOT EXISTS sentences (
@@ -33,7 +33,7 @@ db.serialize(() => {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
-
+  
   // Sets table
   db.run(`
     CREATE TABLE IF NOT EXISTS sets (
@@ -42,7 +42,7 @@ db.serialize(() => {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
-
+  
   // Set words junction table
   db.run(`
     CREATE TABLE IF NOT EXISTS set_words (
@@ -53,7 +53,7 @@ db.serialize(() => {
       PRIMARY KEY (set_id, word_id)
     )
   `);
-  
+    
   // Set sentences junction table
   db.run(`
     CREATE TABLE IF NOT EXISTS set_sentences (
@@ -64,8 +64,8 @@ db.serialize(() => {
       PRIMARY KEY (set_id, sentence_id)
     )
   `);
-
-  // High scores table
+  
+  // High scores table (keeps only the best score per game mode per set)
   db.run(`
     CREATE TABLE IF NOT EXISTS high_scores (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,6 +74,19 @@ db.serialize(() => {
       score INTEGER NOT NULL,
       metadata TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (set_id) REFERENCES sets(id) ON DELETE CASCADE
+    )
+  `);
+
+  // NEW: Game history table (tracks every game session)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS game_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      set_id INTEGER NOT NULL,
+      game_mode TEXT NOT NULL,
+      score INTEGER NOT NULL,
+      metadata TEXT,
+      played_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (set_id) REFERENCES sets(id) ON DELETE CASCADE
     )
   `);
@@ -102,7 +115,7 @@ export const dbOps = {
       db.all(`SELECT s.* FROM sets s INNER JOIN set_words sw ON s.id = sw.set_id WHERE sw.word_id = ?`, [wordId], (err, sets) => { if (err) reject(err); else resolve(sets); });
     });
   },
-  
+    
   // Sentence operations
   addSentence(japanese, english) {
     return new Promise((resolve, reject) => {
@@ -119,7 +132,7 @@ export const dbOps = {
       db.run('DELETE FROM sentences WHERE id = ?', [id], (err) => { if (err) reject(err); else resolve(); });
     });
   },
-
+  
   // Set operations
   addSet(name, wordIds, sentenceIds) {
     return new Promise((resolve, reject) => {
@@ -127,11 +140,11 @@ export const dbOps = {
         db.run('INSERT INTO sets (name) VALUES (?)', [name], function(err) {
           if (err) return reject(err);
           const setId = this.lastID;
-          
+                    
           const wordStmt = db.prepare('INSERT INTO set_words (set_id, word_id) VALUES (?, ?)');
           (wordIds || []).forEach(wordId => wordStmt.run(setId, wordId));
           wordStmt.finalize();
-
+          
           const sentenceStmt = db.prepare('INSERT INTO set_sentences (set_id, sentence_id) VALUES (?, ?)');
           (sentenceIds || []).forEach(sentenceId => sentenceStmt.run(setId, sentenceId));
           sentenceStmt.finalize(err => {
@@ -141,13 +154,13 @@ export const dbOps = {
       });
     });
   },
-
+  
   getAllSets() {
     return new Promise((resolve, reject) => {
       db.all('SELECT * FROM sets ORDER BY id DESC', async (err, sets) => {
         if (err) return reject(err);
         if (sets.length === 0) return resolve([]);
-
+        
         try {
           const setsWithContent = await Promise.all(sets.map(async set => {
             const words = await new Promise((res, rej) => db.all(`SELECT sw.word_id FROM set_words sw INNER JOIN vocabulary v ON sw.word_id = v.id WHERE sw.set_id = ?`, [set.id], (e, r) => e ? rej(e) : res(r)));
@@ -165,7 +178,7 @@ export const dbOps = {
       });
     });
   },
-
+  
   deleteSet(id) {
     return new Promise((resolve, reject) => {
       db.run('DELETE FROM sets WHERE id = ?', [id], (err) => {
@@ -173,7 +186,7 @@ export const dbOps = {
       });
     });
   },
-
+  
   updateSet(id, name, wordIds, sentenceIds) {
     return new Promise((resolve, reject) => {
       db.serialize(() => {
@@ -182,22 +195,23 @@ export const dbOps = {
         db.run('DELETE FROM set_words WHERE set_id = ?', [id]);
         db.run('DELETE FROM set_sentences WHERE set_id = ?', [id]);
         db.run('DELETE FROM high_scores WHERE set_id = ?', [id]);
-
+        db.run('DELETE FROM game_history WHERE set_id = ?', [id]);
+        
         const wordStmt = db.prepare('INSERT INTO set_words (set_id, word_id) VALUES (?, ?)');
         (wordIds || []).forEach(wordId => wordStmt.run(id, wordId));
         wordStmt.finalize();
-        
+                
         const sentenceStmt = db.prepare('INSERT INTO set_sentences (set_id, sentence_id) VALUES (?, ?)');
         (sentenceIds || []).forEach(sentenceId => sentenceStmt.run(id, sentenceId));
         sentenceStmt.finalize();
-
+        
         db.run('COMMIT', err => {
           if (err) reject(err); else resolve();
         });
       });
     });
   },
-
+  
   // Cleanup orphaned references
   cleanupOrphanedWords() {
     return new Promise((resolve, reject) => {
@@ -209,8 +223,8 @@ export const dbOps = {
       db.run(`DELETE FROM set_sentences WHERE sentence_id NOT IN (SELECT id FROM sentences)`, (err) => { if (err) reject(err); else resolve(); });
     });
   },
-
-  // High score operations
+  
+  // High score operations (best performance per game mode)
   saveHighScore(setId, gameMode, score, metadata = null) {
     return new Promise((resolve, reject) => {
       db.run('INSERT INTO high_scores (set_id, game_mode, score, metadata) VALUES (?, ?, ?, ?)', [setId, gameMode, score, metadata ? JSON.stringify(metadata) : null], function(err) { if (err) reject(err); else resolve({ id: this.lastID }); });
@@ -224,6 +238,56 @@ export const dbOps = {
   getAllHighScores(setId) {
     return new Promise((resolve, reject) => {
       db.all(`SELECT game_mode, MAX(score) as score FROM high_scores WHERE set_id = ? GROUP BY game_mode`, [setId], (err, rows) => { if (err) reject(err); else resolve(rows); });
+    });
+  },
+
+  // NEW: Game history operations (every game session)
+  saveGameSession(setId, gameMode, score, metadata = null) {
+    return new Promise((resolve, reject) => {
+      db.run('INSERT INTO game_history (set_id, game_mode, score, metadata) VALUES (?, ?, ?, ?)', 
+        [setId, gameMode, score, metadata ? JSON.stringify(metadata) : null], 
+        function(err) { 
+          if (err) reject(err); 
+          else resolve({ id: this.lastID }); 
+        }
+      );
+    });
+  },
+  
+  getAllGameSessions() {
+    return new Promise((resolve, reject) => {
+      db.all('SELECT * FROM game_history ORDER BY played_at DESC', (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+  },
+
+  getGameSessionsBySet(setId) {
+    return new Promise((resolve, reject) => {
+      db.all('SELECT * FROM game_history WHERE set_id = ? ORDER BY played_at DESC', [setId], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+  },
+
+  getGameStatistics() {
+    return new Promise((resolve, reject) => {
+      db.all(`
+        SELECT 
+          game_mode,
+          COUNT(*) as total_plays,
+          SUM(score) as total_score,
+          AVG(score) as average_score,
+          MAX(score) as best_score,
+          MIN(score) as worst_score
+        FROM game_history 
+        GROUP BY game_mode
+      `, (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
     });
   }
 };

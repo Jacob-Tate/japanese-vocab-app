@@ -1,6 +1,6 @@
 // src/components/TypingChallenge.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { RotateCcw, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { RotateCcw, CheckCircle, XCircle, AlertCircle, Trophy } from 'lucide-react';
 import { api } from '../api';
 
 export default function TypingChallenge({ set, vocabulary, onExit, startingSide = 'japanese', questionCount = 10, romajiMode = false }) {
@@ -13,6 +13,7 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
   const [isComplete, setIsComplete] = useState(false);
   const [results, setResults] = useState([]);
   const [highScore, setHighScore] = useState(0);
+  const [isNewHighScore, setIsNewHighScore] = useState(false);
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -31,11 +32,20 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
     }
   };
 
-  const saveHighScoreIfNeeded = async (finalScore) => {
+  const saveGameCompletion = async (finalScore) => {
+    // Always save the game session for statistics
+    try {
+      await api.saveGameSession(set.id, 'typing', finalScore, { questionCount, startingSide, romajiMode });
+    } catch (error) {
+      console.error('Failed to save game session:', error);
+    }
+
+    // Check if it's a new high score
     if (finalScore > highScore) {
       try {
         await api.saveHighScore(set.id, 'typing', finalScore, { questionCount, startingSide, romajiMode });
         setHighScore(finalScore);
+        setIsNewHighScore(true);
       } catch (error) {
         console.error('Failed to save high score:', error);
       }
@@ -50,14 +60,14 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
 
   const initChallenge = () => {
     const filteredWords = vocabulary.filter(v => set.wordIds.includes(v.id));
-    
+        
     let questionPool = [...filteredWords];
     while (questionPool.length > 0 && questionPool.length < questionCount) {
       questionPool = [...questionPool, ...filteredWords];
     }
-    
+        
     const shuffled = questionPool.sort(() => Math.random() - 0.5).slice(0, questionCount);
-    
+        
     setWords(shuffled);
     setCurrentIndex(0);
     setUserInput('');
@@ -66,14 +76,15 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
     setStreak(0);
     setIsComplete(false);
     setResults([]);
+    setIsNewHighScore(false);
   };
 
   const calculateSimilarity = (str1, str2) => {
     const s1 = str1.toLowerCase().trim();
     const s2 = str2.toLowerCase().trim();
-    
+        
     if (s1 === s2) return 1;
-    
+        
     const matrix = Array(s2.length + 1).fill(null).map(() => Array(s1.length + 1).fill(null));
     for (let i = 0; i <= s1.length; i += 1) {
       matrix[0][i] = i;
@@ -103,13 +114,12 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
 
     const currentWord = words[currentIndex];
     const correctAnswer = startingSide === 'japanese' ? currentWord.english : currentWord.japanese;
-    
+        
     let processedInput = userInput.trim();
     let normalizedCorrect = correctAnswer;
 
     if (romajiMode && startingSide === 'english' && window.wanakana) {
       processedInput = wanakana.toHiragana(processedInput, { passRomaji: true });
-      // Wanakana might produce different variants, compare against romaji too
       const hiraganaAnswer = wanakana.toHiragana(correctAnswer, { passRomaji: true });
       normalizedCorrect = hiraganaAnswer;
     }
@@ -155,21 +165,21 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
         setFeedback(null);
       } else {
         setIsComplete(true);
-        saveHighScoreIfNeeded(finalScore);
+        saveGameCompletion(finalScore);
       }
     }, 1500);
   };
-  
+    
   if (words.length === 0) {
-      return (
-          <div className="p-4 sm:p-6 text-center">
-              <h2 className="text-xl sm:text-2xl font-bold mb-4">Typing Challenge: {set.name}</h2>
-              <p className="text-red-500">This set has no words to practice.</p>
-              <button onClick={onExit} className="mt-4 px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">
-                  Back
-              </button>
-          </div>
-      );
+    return (
+      <div className="p-4 sm:p-6 text-center">
+        <h2 className="text-xl sm:text-2xl font-bold mb-4">Typing Challenge: {set.name}</h2>
+        <p className="text-red-500">This set has no words to practice.</p>
+        <button onClick={onExit} className="mt-4 px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">
+          Back
+        </button>
+      </div>
+    );
   }
 
   const currentWord = words[currentIndex];
@@ -179,7 +189,7 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
     const correctCount = results.filter(r => r.isCorrect).length;
     const closeCount = results.filter(r => r.isClose).length;
     const percentage = Math.round((correctCount / words.length) * 100);
-    
+        
     return (
       <div className="p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6">
@@ -191,10 +201,13 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
           <h3 className="text-2xl sm:text-3xl font-bold mb-4">Challenge Complete!</h3>
           <div className="text-5xl font-bold text-blue-600 mb-2">{percentage}%</div>
           <p className="text-xl mb-2">Final Score: <span className="font-bold text-green-600">{score}</span></p>
-          {score > highScore ?
-            <p className="text-yellow-600 font-bold mb-2">🏆 New High Score!</p> :
-            <p className="text-sm text-gray-600 mb-2">(Best: {highScore})</p>
-          }
+          {isNewHighScore ? (
+            <p className="text-yellow-600 font-bold mb-2 flex items-center justify-center gap-2">
+              <Trophy size={24} /> New High Score!
+            </p>
+          ) : highScore > 0 ? (
+            <p className="text-sm text-gray-600 mb-2">High Score: {highScore}</p>
+          ) : null}
           <div className="flex justify-center gap-4 text-sm mb-6">
             <span className="text-green-600">✓ {correctCount} Perfect</span>
             <span className="text-yellow-600">~ {closeCount} Close</span>
@@ -238,7 +251,16 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
       <div className="mb-4">
         <div className="flex justify-between text-xs sm:text-sm text-gray-600 mb-2">
           <span>Word {currentIndex + 1} of {words.length}</span>
-          <div className="flex gap-4"><span>Score: {score}</span>{streak > 0 && <span className="text-orange-600">🔥 Streak: {streak}</span>}</div>
+          <div className="flex gap-4">
+            <span>Score: {score}</span>
+            {streak > 0 && <span className="text-orange-600">🔥 Streak: {streak}</span>}
+            {highScore > 0 && (
+              <span className="flex items-center gap-1">
+                <Trophy size={16} className="text-yellow-500" />
+                {highScore}
+              </span>
+            )}
+          </div>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2"><div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${progress}%` }}/></div>
       </div>

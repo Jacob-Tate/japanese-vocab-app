@@ -1,16 +1,17 @@
 // src/components/MultipleChoiceQuiz.jsx
 import React, { useState, useEffect } from 'react';
-import { RotateCcw, CheckCircle, XCircle } from 'lucide-react';
+import { RotateCcw, CheckCircle, XCircle, Trophy } from 'lucide-react';
 import { api } from '../api';
 
 export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSide = 'japanese', questionCount = 10 }) {
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
-  const [feedback, setFeedback] = useState(null); // null, 'correct', 'wrong'
+  const [feedback, setFeedback] = useState(null);
   const [score, setScore] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
   const [highScore, setHighScore] = useState(0);
+  const [isNewHighScore, setIsNewHighScore] = useState(false);
 
   useEffect(() => {
     initQuiz();
@@ -28,11 +29,20 @@ export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSi
     }
   };
 
-  const saveHighScoreIfNeeded = async (finalScore) => {
+  const saveGameCompletion = async (finalScore) => {
+    // Always save the game session for statistics
+    try {
+      await api.saveGameSession(set.id, 'quiz', finalScore, { questionCount, startingSide });
+    } catch (error) {
+      console.error('Failed to save game session:', error);
+    }
+
+    // Check if it's a new high score
     if (finalScore > highScore) {
       try {
         await api.saveHighScore(set.id, 'quiz', finalScore, { questionCount, startingSide });
         setHighScore(finalScore);
+        setIsNewHighScore(true);
       } catch (error) {
         console.error('Failed to save high score:', error);
       }
@@ -42,12 +52,10 @@ export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSi
   const initQuiz = () => {
     const wordsInSet = vocabulary.filter(v => set.wordIds.includes(v.id));
     if (wordsInSet.length < 4) {
-      // Not enough words to create a meaningful quiz
       setQuestions([]);
       return;
     }
-    
-    // Create a pool of questions, repeating if necessary
+        
     let questionPool = [...wordsInSet];
     while(questionPool.length < questionCount) {
         questionPool.push(...wordsInSet);
@@ -61,10 +69,10 @@ export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSi
           .filter(w => w.id !== correctWord.id)
           .sort(() => Math.random() - 0.5)
           .slice(0, 3);
-        
+                
         const options = [correctWord, ...distractors]
           .sort(() => Math.random() - 0.5);
-        
+                
         return {
           question: startingSide === 'japanese' ? correctWord.japanese : correctWord.english,
           options: options.map(opt => startingSide === 'japanese' ? opt.english : opt.japanese),
@@ -78,14 +86,15 @@ export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSi
     setFeedback(null);
     setScore(0);
     setIsComplete(false);
+    setIsNewHighScore(false);
   };
 
   const handleAnswer = (answer) => {
-    if (feedback) return; // Don't allow changing answer after feedback
+    if (feedback) return;
 
     setSelectedAnswer(answer);
     const isCorrect = answer === questions[currentIndex].correctAnswer;
-    
+        
     if (isCorrect) {
       setScore(score + 10);
       setFeedback('correct');
@@ -99,8 +108,9 @@ export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSi
         setSelectedAnswer(null);
         setFeedback(null);
       } else {
+        const finalScore = isCorrect ? score + 10 : score;
         setIsComplete(true);
-        saveHighScoreIfNeeded(isCorrect ? score + 10 : score);
+        saveGameCompletion(finalScore);
       }
     }, 1500);
   };
@@ -119,15 +129,17 @@ export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSi
 
   const currentQuestion = questions[currentIndex];
   const progress = ((currentIndex + 1) / questions.length) * 100;
-  
+    
   if (isComplete) {
-     return (
+    return (
       <div className="p-4 sm:p-6 text-center">
         <h2 className="text-xl sm:text-2xl font-bold mb-4">Quiz Complete!</h2>
         <p className="text-lg mb-2">Your score: <span className="font-bold text-green-600">{score}</span></p>
         {highScore > 0 && <p className="text-sm mb-4">High Score: {highScore}</p>}
-        {score === highScore && score > 0 && (
-          <p className="text-yellow-600 font-bold mb-4">🏆 New High Score!</p>
+        {isNewHighScore && (
+          <p className="text-yellow-600 font-bold mb-4 flex items-center justify-center gap-2">
+            <Trophy size={24} /> New High Score!
+          </p>
         )}
         <button
           onClick={initQuiz}
@@ -150,17 +162,25 @@ export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSi
           Exit
         </button>
       </div>
-      
+            
       <div className="mb-4">
         <div className="flex justify-between text-sm text-gray-600 mb-2">
           <span>Question {currentIndex + 1} of {questions.length}</span>
-          <span>Score: {score}</span>
+          <div className="flex items-center gap-4">
+            <span>Score: {score}</span>
+            {highScore > 0 && (
+              <span className="flex items-center gap-1">
+                <Trophy size={16} className="text-yellow-500" />
+                {highScore}
+              </span>
+            )}
+          </div>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${progress}%` }}/>
         </div>
       </div>
-      
+            
       <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 mb-6">
         <p className="text-gray-600 mb-2">What is the translation of:</p>
         <h3 className="text-4xl sm:text-5xl font-bold mb-8 text-center">{currentQuestion.question}</h3>
@@ -169,7 +189,7 @@ export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSi
           {currentQuestion.options.map((option, index) => {
             const isCorrect = option === currentQuestion.correctAnswer;
             let buttonClass = 'bg-white border-2 border-gray-200 hover:border-blue-300';
-            
+                        
             if (feedback && selectedAnswer === option) {
               buttonClass = isCorrect ? 'bg-green-500 text-white' : 'bg-red-500 text-white';
             } else if (feedback && isCorrect) {
@@ -188,11 +208,11 @@ export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSi
             );
           })}
         </div>
-        
+                
         {feedback && (
           <div className="mt-6 text-lg font-bold text-center">
             {feedback === 'correct' ? 
-              <span className="text-green-600 flex items-center justify-center gap-2"><CheckCircle /> Correct!</span> : 
+              <span className="text-green-600 flex items-center justify-center gap-2"><CheckCircle /> Correct!</span> :
               <span className="text-red-600 flex items-center justify-center gap-2"><XCircle /> Incorrect!</span>
             }
           </div>

@@ -1,3 +1,4 @@
+// src/components/SpeedMatch.jsx
 import React, { useState, useEffect } from 'react';
 import { RotateCcw, Zap, Trophy } from 'lucide-react';
 import { api } from '../api';
@@ -16,6 +17,7 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
   const [isGameActive, setIsGameActive] = useState(false);
   const [combo, setCombo] = useState(0);
   const [highScore, setHighScore] = useState(0);
+  const [isNewHighScore, setIsNewHighScore] = useState(false);
 
   useEffect(() => {
     initGame();
@@ -33,11 +35,20 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
     }
   };
 
-  const saveHighScoreIfNeeded = async (finalScore) => {
+  const saveGameCompletion = async (finalScore) => {
+    // Always save the game session for statistics
+    try {
+      await api.saveGameSession(set.id, 'speedmatch', finalScore, { repetitions });
+    } catch (error) {
+      console.error('Failed to save game session:', error);
+    }
+
+    // Check if it's a new high score
     if (finalScore > highScore) {
       try {
         await api.saveHighScore(set.id, 'speedmatch', finalScore, { repetitions });
         setHighScore(finalScore);
+        setIsNewHighScore(true);
       } catch (error) {
         console.error('Failed to save high score:', error);
       }
@@ -48,22 +59,22 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
     if (isGameActive && timeLeft > 0) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
       return () => clearTimeout(timer);
-    } else if (timeLeft === 0) {
+    } else if (timeLeft === 0 && isGameActive) {
       setIsGameActive(false);
-      saveHighScoreIfNeeded(score);
+      saveGameCompletion(score);
     }
   }, [timeLeft, isGameActive]);
 
   const initGame = () => {
     const words = vocabulary.filter(v => set.wordIds.includes(v.id));
-    
+        
     const expanded = [];
     words.forEach(word => {
       for (let i = 0; i < repetitions; i++) {
         expanded.push({ ...word, instanceId: `${word.id}-${i}` });
       }
     });
-    
+        
     setGameWords(expanded);
     setMatched([]);
     setGrayedOut([]);
@@ -71,12 +82,13 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
     setCombo(0);
     setTimeLeft(60);
     setIsGameActive(true);
+    setIsNewHighScore(false);
     loadNextPairs(expanded, []);
   };
 
   const loadNextPairs = (wordsPool, currentMatched) => {
     const available = wordsPool.filter(w => !currentMatched.includes(w.instanceId));
-    
+        
     if (available.length === 0) {
       return;
     }
@@ -84,7 +96,7 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
     const shuffledAvailable = [...available].sort(() => Math.random() - 0.5);
     const uniqueWords = [];
     const seenIds = new Set();
-    
+        
     for (const word of shuffledAvailable) {
       if (!seenIds.has(word.id)) {
         seenIds.add(word.id);
@@ -92,13 +104,13 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
         if (uniqueWords.length >= 5) break;
       }
     }
-    
+        
     const newLeftItems = uniqueWords.map(w => ({
       instanceId: w.instanceId,
       text: w.japanese,
       id: w.id
     }));
-    
+        
     const newRightItems = uniqueWords.map(w => ({
       instanceId: w.instanceId,
       text: w.english,
@@ -134,58 +146,57 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
       const basePoints = 10;
       const speedBonus = timeLeft > 45 ? 5 : timeLeft > 30 ? 3 : 0;
       const points = (basePoints + speedBonus) * comboMultiplier;
-      
+      const newScore = score + points;
+            
       setMatched(newMatched);
       setCombo(newCombo);
-      setScore(score + points);
-      
+      setScore(newScore);
+            
       const available = gameWords.filter(w => !newMatched.includes(w.instanceId));
-      
+            
       setTimeout(() => {
         setSelectedLeft(null);
         setSelectedRight(null);
-        
+                
         if (available.length === 0) {
           setLeftItems([]);
           setRightItems([]);
           setGrayedOut([]);
           setIsGameActive(false);
-          if (score + points > highScore) {
-            saveHighScoreIfNeeded(score + points);
-          }
+          saveGameCompletion(newScore);
           return;
         }
-        
+                
         setGrayedOut(newGrayedOut);
-        
+                
         if (newGrayedOut.length >= 6) {
           const remainingLeft = leftItems.filter(i => !newGrayedOut.includes(i.instanceId));
           const remainingRight = rightItems.filter(i => !newGrayedOut.includes(i.instanceId));
-          
+                    
           const shuffledAvailable = [...available].sort(() => Math.random() - 0.5);
           const currentWordIds = new Set([...remainingLeft, ...remainingRight].map(item => item.id));
           const newWords = [];
           const newWordIds = new Set();
-          
+                    
           for (const word of shuffledAvailable) {
             if (!currentWordIds.has(word.id) && !newWordIds.has(word.id) && newWords.length < 3) {
               newWords.push(word);
               newWordIds.add(word.id);
             }
           }
-          
+                    
           const newLeftItems = newWords.map(w => ({
             instanceId: w.instanceId,
             text: w.japanese,
             id: w.id
           }));
-          
+                    
           const newRightItems = newWords.map(w => ({
             instanceId: w.instanceId,
             text: w.english,
             id: w.id
           }));
-          
+                    
           setLeftItems([...remainingLeft, ...newLeftItems].sort(() => Math.random() - 0.5));
           setRightItems([...remainingRight, ...newRightItems].sort(() => Math.random() - 0.5));
           setGrayedOut([]);
@@ -253,8 +264,10 @@ export default function SpeedMatch({ set, vocabulary, onExit, repetitions = 3 })
           </h3>
           <p className="text-xl sm:text-2xl mb-2">Final Score: <span className="font-bold text-green-600">{score}</span></p>
           <p className="text-base sm:text-lg mb-4">Matches: {matched.length / 2}</p>
-          {score === highScore && score > 0 && (
-            <p className="text-yellow-600 font-bold mb-4">🏆 New High Score!</p>
+          {isNewHighScore && (
+            <p className="text-yellow-600 font-bold mb-4 flex items-center justify-center gap-2">
+              <Trophy size={24} /> New High Score!
+            </p>
           )}
           <button
             onClick={initGame}

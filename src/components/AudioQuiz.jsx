@@ -1,6 +1,6 @@
 // src/components/AudioQuiz.jsx
 import React, { useState, useEffect } from 'react';
-import { RotateCcw, Volume2, CheckCircle, XCircle } from 'lucide-react';
+import { RotateCcw, Volume2, CheckCircle, XCircle, Trophy } from 'lucide-react';
 import { api } from '../api';
 
 // Simple Text-to-Speech utility
@@ -22,6 +22,7 @@ export default function AudioQuiz({ set, vocabulary, onExit, questionCount = 10 
   const [score, setScore] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
   const [highScore, setHighScore] = useState(0);
+  const [isNewHighScore, setIsNewHighScore] = useState(false);
 
   useEffect(() => {
     initQuiz();
@@ -37,11 +38,20 @@ export default function AudioQuiz({ set, vocabulary, onExit, questionCount = 10 
     }
   };
 
-  const saveHighScoreIfNeeded = async (finalScore) => {
+  const saveGameCompletion = async (finalScore) => {
+    // Always save the game session for statistics
+    try {
+      await api.saveGameSession(set.id, 'audio_quiz', finalScore, { questionCount });
+    } catch (error) {
+      console.error('Failed to save game session:', error);
+    }
+
+    // Check if it's a new high score
     if (finalScore > highScore) {
       try {
         await api.saveHighScore(set.id, 'audio_quiz', finalScore, { questionCount });
         setHighScore(finalScore);
+        setIsNewHighScore(true);
       } catch (error) {
         console.error('Failed to save high score:', error);
       }
@@ -55,7 +65,7 @@ export default function AudioQuiz({ set, vocabulary, onExit, questionCount = 10 
       setQuestions([]);
       return;
     }
-    
+        
     let questionPool = [...wordsInSet];
     while(questionPool.length < questionCount) {
         questionPool.push(...wordsInSet);
@@ -69,10 +79,10 @@ export default function AudioQuiz({ set, vocabulary, onExit, questionCount = 10 
           .filter(w => w.id !== correctWord.id)
           .sort(() => Math.random() - 0.5)
           .slice(0, 3);
-        
+                
         const options = [correctWord, ...distractors]
           .sort(() => Math.random() - 0.5);
-        
+                
         return {
           questionWord: correctWord,
           options: options.map(opt => opt.english),
@@ -86,6 +96,7 @@ export default function AudioQuiz({ set, vocabulary, onExit, questionCount = 10 
     setFeedback(null);
     setScore(0);
     setIsComplete(false);
+    setIsNewHighScore(false);
   };
 
   const handleAnswer = (answer) => {
@@ -93,7 +104,7 @@ export default function AudioQuiz({ set, vocabulary, onExit, questionCount = 10 
 
     setSelectedAnswer(answer);
     const isCorrect = answer === questions[currentIndex].correctAnswer;
-    
+        
     if (isCorrect) {
       setScore(score + 10);
       setFeedback('correct');
@@ -107,8 +118,9 @@ export default function AudioQuiz({ set, vocabulary, onExit, questionCount = 10 
         setSelectedAnswer(null);
         setFeedback(null);
       } else {
+        const finalScore = isCorrect ? score + 10 : score;
         setIsComplete(true);
-        saveHighScoreIfNeeded(isCorrect ? score + 10 : score);
+        saveGameCompletion(finalScore);
       }
     }, 1500);
   };
@@ -127,15 +139,17 @@ export default function AudioQuiz({ set, vocabulary, onExit, questionCount = 10 
 
   const currentQuestion = questions[currentIndex];
   const progress = ((currentIndex + 1) / questions.length) * 100;
-  
+    
   if (isComplete) {
-     return (
+    return (
       <div className="p-4 sm:p-6 text-center">
         <h2 className="text-xl sm:text-2xl font-bold mb-4">Quiz Complete!</h2>
         <p className="text-lg mb-2">Your score: <span className="font-bold text-green-600">{score}</span></p>
         {highScore > 0 && <p className="text-sm mb-4">High Score: {highScore}</p>}
-        {score === highScore && score > 0 && (
-          <p className="text-yellow-600 font-bold mb-4">🏆 New High Score!</p>
+        {isNewHighScore && (
+          <p className="text-yellow-600 font-bold mb-4 flex items-center justify-center gap-2">
+            <Trophy size={24} /> New High Score!
+          </p>
         )}
         <button
           onClick={initQuiz}
@@ -158,22 +172,30 @@ export default function AudioQuiz({ set, vocabulary, onExit, questionCount = 10 
           Exit
         </button>
       </div>
-      
+            
       <div className="mb-4">
         <div className="flex justify-between text-sm text-gray-600 mb-2">
           <span>Question {currentIndex + 1} of {questions.length}</span>
-          <span>Score: {score}</span>
+          <div className="flex items-center gap-4">
+            <span>Score: {score}</span>
+            {highScore > 0 && (
+              <span className="flex items-center gap-1">
+                <Trophy size={16} className="text-yellow-500" />
+                {highScore}
+              </span>
+            )}
+          </div>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${progress}%` }}/>
         </div>
       </div>
-      
+            
       <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8 mb-6 text-center">
         <p className="text-gray-600 mb-4">Listen to the word and select the correct translation:</p>
         <button 
-            onClick={() => speak(currentQuestion.questionWord.japanese)}
-            className="bg-blue-500 text-white rounded-full p-6 hover:bg-blue-600 transition-transform hover:scale-110 mb-8 mx-auto flex items-center justify-center"
+          onClick={() => speak(currentQuestion.questionWord.japanese)}
+          className="bg-blue-500 text-white rounded-full p-6 hover:bg-blue-600 transition-transform hover:scale-110 mb-8 mx-auto flex items-center justify-center"
         >
           <Volume2 size={48} />
         </button>
@@ -203,7 +225,7 @@ export default function AudioQuiz({ set, vocabulary, onExit, questionCount = 10 
         {feedback && (
           <div className="mt-6 text-lg font-bold">
             {feedback === 'correct' ? 
-              <span className="text-green-600 flex items-center justify-center gap-2"><CheckCircle /> Correct!</span> : 
+              <span className="text-green-600 flex items-center justify-center gap-2"><CheckCircle /> Correct!</span> :
               <span className="text-red-600 flex items-center justify-center gap-2"><XCircle /> Incorrect!</span>
             }
           </div>

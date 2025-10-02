@@ -145,6 +145,35 @@ app.get('/api/highscores/:setId', async (req, res) => {
   }
 });
 
+// NEW: Game history routes
+app.post('/api/game-sessions', async (req, res) => {
+  try {
+    const { setId, gameMode, score, metadata } = req.body;
+    const result = await dbOps.saveGameSession(setId, gameMode, score, metadata);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/game-sessions', async (req, res) => {
+  try {
+    const sessions = await dbOps.getAllGameSessions();
+    res.json(sessions);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/game-statistics', async (req, res) => {
+  try {
+    const stats = await dbOps.getGameStatistics();
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   
