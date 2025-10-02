@@ -126,7 +126,7 @@ export default function JapaneseVocabApp() {
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg transition-colors duration-200">
-            {currentView === 'vocab' && <VocabularyManager vocabulary={vocabulary} onRefresh={loadData} />}
+            {currentView === 'vocab' && <VocabularyManager vocabulary={vocabulary} sets={sets} onRefresh={loadData} />}
             {currentView === 'sentences' && <SentenceManager sentences={sentences} onRefresh={loadData} />}
             {currentView === 'sets' && <SetManager vocabulary={vocabulary} sentences={sentences} sets={sets} onRefresh={loadData} />}
             {currentView === 'practice' && (

@@ -13,8 +13,8 @@ app.use(express.json());
 // Vocabulary routes
 app.post('/api/vocabulary', async (req, res) => {
   try {
-    const { japanese, english } = req.body;
-    const result = await dbOps.addVocab(japanese, english);
+    const { japanese, english, setIds } = req.body;
+    const result = await dbOps.addVocab(japanese, english, setIds);
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -43,6 +43,16 @@ app.get('/api/vocabulary/:id/sets', async (req, res) => {
   try {
     const sets = await dbOps.getSetsContainingWord(req.params.id);
     res.json(sets);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/vocabulary/:id/sets', async (req, res) => {
+  try {
+    const { setIds } = req.body;
+    await dbOps.updateWordSets(req.params.id, setIds);
+    res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

@@ -26,6 +26,15 @@ export const api = {
     return response.json();
   },
   
+  async updateWordSets(wordId, setIds) {
+    const response = await fetch(`${API_URL}/vocabulary/${wordId}/sets`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ setIds })
+    });
+    return response.json();
+  },
+
   async addSentence(sentence) {
     const response = await fetch(`${API_URL}/sentences`, {
       method: 'POST',

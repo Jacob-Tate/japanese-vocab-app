@@ -109,9 +109,29 @@ db.serialize(() => {
 // Database operations
 export const dbOps = {
   // Vocabulary operations
-  addVocab(japanese, english) {
+  addVocab(japanese, english, setIds) {
     return new Promise((resolve, reject) => {
-      db.run('INSERT INTO vocabulary (japanese, english) VALUES (?, ?)', [japanese, english], function(err) { if (err) reject(err); else resolve({ id: this.lastID }); });
+      db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+        db.run('INSERT INTO vocabulary (japanese, english) VALUES (?, ?)', [japanese, english], function(err) {
+          if (err) {
+            db.run('ROLLBACK');
+            return reject(err);
+          }
+          const wordId = this.lastID;
+
+          if (setIds && setIds.length > 0) {
+            const stmt = db.prepare('INSERT INTO set_words (set_id, word_id) VALUES (?, ?)');
+            setIds.forEach(setId => stmt.run(setId, wordId));
+            stmt.finalize();
+          }
+
+          db.run('COMMIT', err => {
+            if (err) reject(err);
+            else resolve({ id: wordId });
+          });
+        });
+      });
     });
   },
   getAllVocab() {
@@ -142,6 +162,28 @@ export const dbOps = {
   getSetsContainingWord(wordId) {
     return new Promise((resolve, reject) => {
       db.all(`SELECT s.* FROM sets s INNER JOIN set_words sw ON s.id = sw.set_id WHERE sw.word_id = ?`, [wordId], (err, sets) => { if (err) reject(err); else resolve(sets); });
+    });
+  },
+  updateWordSets(wordId, setIds) {
+    return new Promise((resolve, reject) => {
+      db.serialize(() => {
+        db.run('BEGIN TRANSACTION');
+        
+        // Delete existing associations for this word
+        db.run('DELETE FROM set_words WHERE word_id = ?', [wordId]);
+        
+        // Insert new associations
+        if (setIds && setIds.length > 0) {
+          const stmt = db.prepare('INSERT INTO set_words (set_id, word_id) VALUES (?, ?)');
+          setIds.forEach(setId => stmt.run(setId, wordId));
+          stmt.finalize();
+        }
+        
+        db.run('COMMIT', err => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
     });
   },
     
