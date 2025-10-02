@@ -41,6 +41,7 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
   const [english, setEnglish] = useState('');
   const [newWordSets, setNewWordSets] = useState([]);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [addError, setAddError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirmation, setDeleteConfirmation] = useState(null);
   const [managingWord, setManagingWord] = useState(null);
@@ -62,17 +63,23 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
 
   const handleAdd = async () => {
     if (japanese.trim() && english.trim()) {
-      await api.addVocab({ 
-        japanese: japanese.trim(), 
-        english: english.trim(),
-        setIds: newWordSets
-      });
-      setJapanese('');
-      setEnglish('');
-      setNewWordSets([]);
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 2000);
-      onRefresh();
+      setAddError(null);
+      try {
+        await api.addVocab({ 
+          japanese: japanese.trim(), 
+          english: english.trim(),
+          setIds: newWordSets
+        });
+        setJapanese('');
+        setEnglish('');
+        setNewWordSets([]);
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 2000);
+        onRefresh();
+      } catch (error) {
+        setAddError(error.message);
+        setTimeout(() => setAddError(null), 5000);
+      }
     }
   };
 
@@ -241,6 +248,7 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
         </div>
         <button onClick={handleAdd} className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 flex items-center gap-2"><Plus size={20} /> Add Word</button>
         {showSuccess && (<div className="mt-4 text-green-600 dark:text-green-400 flex items-center gap-2"><Check size={20} /> Word added successfully!</div>)}
+        {addError && (<div className="mt-4 text-red-600 dark:text-red-400 flex items-center gap-2"><AlertTriangle size={20} /> {addError}</div>)}
       </div>
 
       <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-4 sm:p-6">

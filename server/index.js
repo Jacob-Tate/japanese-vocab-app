@@ -17,7 +17,11 @@ app.post('/api/vocabulary', async (req, res) => {
     const result = await dbOps.addVocab(japanese, english, setIds);
     res.json(result);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    if (error.message.includes('already exists')) {
+      res.status(409).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: error.message });
+    }
   }
 });
 
@@ -65,7 +69,11 @@ app.post('/api/sentences', async (req, res) => {
     const result = await dbOps.addSentence(japanese, english);
     res.json(result);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    if (error.message.includes('already exists')) {
+      res.status(409).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: error.message });
+    }
   }
 });
 

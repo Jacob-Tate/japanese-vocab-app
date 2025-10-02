@@ -12,13 +12,84 @@ const db = new sqlite3.Database(dbPath);
 // CRITICAL: Enable foreign key constraints in SQLite
 db.run('PRAGMA foreign_keys = ON');
 
+// Schema migration logic
+db.get('PRAGMA user_version', (err, row) => {
+  if (err) {
+    console.error('Failed to get user_version', err);
+    return;
+  }
+
+  const currentVersion = row ? row.user_version : 0;
+  console.log(`Database version: ${currentVersion}`);
+
+  if (currentVersion < 1) {
+    console.log('Running database migration to version 1 (add UNIQUE constraints)...');
+    db.serialize(() => {
+      db.run('BEGIN TRANSACTION');
+
+      // Create new tables with UNIQUE constraints
+      db.run(`
+        CREATE TABLE vocabulary_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          japanese TEXT NOT NULL UNIQUE,
+          english TEXT NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      db.run(`
+        CREATE TABLE sentences_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          japanese TEXT NOT NULL UNIQUE,
+          english TEXT NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      // Copy data, automatically de-duplicating by grouping
+      db.run(`
+        INSERT INTO vocabulary_new (id, japanese, english, created_at)
+        SELECT MIN(id), japanese, english, MIN(created_at) FROM vocabulary GROUP BY japanese
+      `, (err) => {
+        if (err) console.error("Migration error (vocabulary):", err.message);
+      });
+      db.run(`
+        INSERT INTO sentences_new (id, japanese, english, created_at)
+        SELECT MIN(id), japanese, english, MIN(created_at) FROM sentences GROUP BY japanese
+      `, (err) => {
+        if (err) console.error("Migration error (sentences):", err.message);
+      });
+
+      // Drop old tables
+      db.run('DROP TABLE vocabulary');
+      db.run('DROP TABLE sentences');
+
+      // Rename new tables to the original names
+      db.run('ALTER TABLE vocabulary_new RENAME TO vocabulary');
+      db.run('ALTER TABLE sentences_new RENAME TO sentences');
+
+      // Update the database version
+      db.run('PRAGMA user_version = 1');
+
+      db.run('COMMIT', (err) => {
+        if (err) {
+          console.error('Migration commit failed:', err);
+          db.run('ROLLBACK');
+        } else {
+          console.log('Database migration to version 1 complete.');
+        }
+      });
+    });
+  }
+});
+
+
 // Initialize database tables
 db.serialize(() => {
   // Vocabulary table
   db.run(`
     CREATE TABLE IF NOT EXISTS vocabulary (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      japanese TEXT NOT NULL,
+      japanese TEXT NOT NULL UNIQUE,
       english TEXT NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
@@ -28,7 +99,7 @@ db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS sentences (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      japanese TEXT NOT NULL,
+      japanese TEXT NOT NULL UNIQUE,
       english TEXT NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
@@ -111,11 +182,20 @@ export const dbOps = {
   // Vocabulary operations
   addVocab(japanese, english, setIds) {
     return new Promise((resolve, reject) => {
+      const trimmedJapanese = japanese.trim();
+      const trimmedEnglish = english.trim();
+      if (!trimmedJapanese || !trimmedEnglish) {
+        return reject(new Error("Japanese and English fields cannot be empty."));
+      }
+
       db.serialize(() => {
         db.run('BEGIN TRANSACTION');
-        db.run('INSERT INTO vocabulary (japanese, english) VALUES (?, ?)', [japanese, english], function(err) {
+        db.run('INSERT INTO vocabulary (japanese, english) VALUES (?, ?)', [trimmedJapanese, trimmedEnglish], function(err) {
           if (err) {
             db.run('ROLLBACK');
+            if (err.code === 'SQLITE_CONSTRAINT' && err.message.includes('UNIQUE constraint failed: vocabulary.japanese')) {
+              return reject(new Error(`The word "${trimmedJapanese}" already exists.`));
+            }
             return reject(err);
           }
           const wordId = this.lastID;
@@ -190,7 +270,22 @@ export const dbOps = {
   // Sentence operations
   addSentence(japanese, english) {
     return new Promise((resolve, reject) => {
-      db.run('INSERT INTO sentences (japanese, english) VALUES (?, ?)', [japanese, english], function(err) { if (err) reject(err); else resolve({ id: this.lastID }); });
+      const trimmedJapanese = japanese.trim();
+      const trimmedEnglish = english.trim();
+      if (!trimmedJapanese || !trimmedEnglish) {
+        return reject(new Error("Japanese and English fields cannot be empty."));
+      }
+      
+      db.run('INSERT INTO sentences (japanese, english) VALUES (?, ?)', [trimmedJapanese, trimmedEnglish], function(err) { 
+        if (err) {
+          if (err.code === 'SQLITE_CONSTRAINT' && err.message.includes('UNIQUE constraint failed: sentences.japanese')) {
+            return reject(new Error(`The sentence "${trimmedJapanese.substring(0, 20)}..." already exists.`));
+          }
+          return reject(err);
+        } else {
+          resolve({ id: this.lastID });
+        }
+      });
     });
   },
   getAllSentences() {

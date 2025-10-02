@@ -1,12 +1,13 @@
 // src/components/SentenceManager.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, X, Check, Search } from 'lucide-react';
+import { Plus, X, Check, Search, AlertTriangle } from 'lucide-react';
 import { api } from '../api';
 
 export default function SentenceManager({ sentences, onRefresh }) {
   const [japanese, setJapanese] = useState('');
   const [english, setEnglish] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [addError, setAddError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const japaneseInputRef = useRef(null);
 
@@ -24,12 +25,18 @@ export default function SentenceManager({ sentences, onRefresh }) {
 
   const handleAdd = async () => {
     if (japanese.trim() && english.trim()) {
-      await api.addSentence({ japanese: japanese.trim(), english: english.trim() });
-      setJapanese('');
-      setEnglish('');
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 2000);
-      onRefresh();
+      setAddError(null);
+      try {
+        await api.addSentence({ japanese: japanese.trim(), english: english.trim() });
+        setJapanese('');
+        setEnglish('');
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 2000);
+        onRefresh();
+      } catch (error) {
+        setAddError(error.message);
+        setTimeout(() => setAddError(null), 5000);
+      }
     }
   };
 
@@ -70,6 +77,7 @@ export default function SentenceManager({ sentences, onRefresh }) {
           <Plus size={20} /> Add Sentence
         </button>
         {showSuccess && <div className="mt-4 text-green-600 dark:text-green-400 flex items-center gap-2"><Check size={20} /> Sentence added successfully!</div>}
+        {addError && <div className="mt-4 text-red-600 dark:text-red-400 flex items-center gap-2"><AlertTriangle size={20} /> {addError}</div>}
       </div>
 
       <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-4 sm:p-6">

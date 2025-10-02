@@ -74,10 +74,12 @@ export default function ImportExport({ onRefresh }) {
     let wordCount = 0;
     let sentenceCount = 0;
     const errors = [];
+    let processedLines = 0;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
+      processedLines++;
       const match = line.match(/^(word|sentence),"([^"]*)","([^"]*)"$/);
       if (!match) {
         errors.push(`Line ${i + 2}: Invalid format`);
@@ -86,37 +88,73 @@ export default function ImportExport({ onRefresh }) {
       const [, type, japanese, english] = match;
       try {
         if (type === 'word') {
-          await api.addVocab({ japanese, english });
+          await api.addVocab({ japanese: japanese.trim(), english: english.trim() });
           wordCount++;
         } else if (type === 'sentence') {
-          await api.addSentence({ japanese, english });
+          await api.addSentence({ japanese: japanese.trim(), english: english.trim() });
           sentenceCount++;
         }
       } catch (error) {
-        errors.push(`Line ${i + 2}: ${error.message}`);
+        errors.push(`Line ${i + 2} (${japanese.trim()}): ${error.message}`);
       }
     }
-    setImportResult({ success: true, message: `Imported ${wordCount} words and ${sentenceCount} sentences`, errors: errors.length > 0 ? errors : null });
+    const skippedCount = processedLines - (wordCount + sentenceCount);
+    let message = `Imported ${wordCount} words and ${sentenceCount} sentences from CSV.`;
+    if(skippedCount > 0){
+        message += ` ${skippedCount} items were skipped (duplicates or errors).`;
+    }
+    setImportResult({ success: true, message: message, errors: errors.length > 0 ? errors : null });
   };
 
   const importFromJSON = async (jsonText) => {
     const data = JSON.parse(jsonText);
     const vocabIdMap = new Map();
-    for (const vocab of data.vocab || []) {
-      const result = await api.addVocab({ japanese: vocab.japanese, english: vocab.english });
-      vocabIdMap.set(vocab.id, result.id);
-    }
     const sentenceIdMap = new Map();
-    for (const sentence of data.sentences || []) {
-      const result = await api.addSentence({ japanese: sentence.japanese, english: sentence.english });
-      sentenceIdMap.set(sentence.id, result.id);
+    const errors = [];
+    let importedWords = 0;
+    let skippedWords = 0;
+    let importedSentences = 0;
+    let skippedSentences = 0;
+    let importedSets = 0;
+
+    for (const vocab of data.vocab || []) {
+      try {
+        const result = await api.addVocab({ japanese: vocab.japanese.trim(), english: vocab.english.trim() });
+        vocabIdMap.set(vocab.id, result.id);
+        importedWords++;
+      } catch (error) {
+        skippedWords++;
+        errors.push(`Word "${vocab.japanese.trim()}": ${error.message}`);
+      }
     }
+
+    for (const sentence of data.sentences || []) {
+      try {
+        const result = await api.addSentence({ japanese: sentence.japanese.trim(), english: sentence.english.trim() });
+        sentenceIdMap.set(sentence.id, result.id);
+        importedSentences++;
+      } catch(error) {
+        skippedSentences++;
+        errors.push(`Sentence "${sentence.japanese.trim().substring(0,20)}...": ${error.message}`);
+      }
+    }
+
     for (const set of data.sets || []) {
       const wordIds = (set.wordIds || []).map(id => vocabIdMap.get(id)).filter(Boolean);
       const sentenceIds = (set.sentenceIds || []).map(id => sentenceIdMap.get(id)).filter(Boolean);
       await api.addSet({ name: set.name, wordIds, sentenceIds });
+      importedSets++;
     }
-    setImportResult({ success: true, message: `Imported ${data.vocab?.length || 0} words, ${data.sentences?.length || 0} sentences, and ${data.sets?.length || 0} sets` });
+    
+    let message = `Imported ${importedWords} words, ${importedSentences} sentences, and ${importedSets} sets.`;
+    const skippedMessages = [];
+    if (skippedWords > 0) skippedMessages.push(`${skippedWords} duplicate words`);
+    if (skippedSentences > 0) skippedMessages.push(`${skippedSentences} duplicate sentences`);
+    if (skippedMessages.length > 0) {
+      message += ` Skipped ${skippedMessages.join(' and ')}.`;
+    }
+    
+    setImportResult({ success: true, message, errors: errors.length > 0 ? errors : null });
   };
     
   const handleResetAllSrs = async () => {

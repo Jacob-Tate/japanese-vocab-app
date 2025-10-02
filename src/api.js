@@ -8,7 +8,11 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(vocab)
     });
-    return response.json();
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to add vocabulary word.');
+    }
+    return data;
   },
     
   async getAllVocab() {
@@ -41,7 +45,11 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(sentence)
     });
-    return response.json();
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to add sentence.');
+    }
+    return data;
   },
     
   async getAllSentences() {
