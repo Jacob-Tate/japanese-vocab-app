@@ -1,6 +1,6 @@
 // src/components/PracticeSelector.jsx
 import React, { useState, useEffect } from 'react';
-import { Book, Play, Layers, Zap, ListChecks, Keyboard, Grid3x3, Volume2, Trophy, MessageSquare, Diameter, Brain } from 'lucide-react';
+import { Book, Play, Layers, Zap, ListChecks, Keyboard, Grid3x3, Volume2, Trophy, MessageSquare, Diameter, Brain, Type } from 'lucide-react';
 import { api } from '../api';
 
 function HighScores({ scores }) {
@@ -23,7 +23,7 @@ function HighScores({ scores }) {
   );
 }
 
-export default function PracticeSelector({ sets, vocabulary, onStartGame, onStartFlashcard, onStartSpeedMatch, onStartQuiz, onStartTyping, onStartTypingBlitz, onStartMemory, onStartAudioQuiz, onStartSentenceScramble, onStartSrs }) {
+export default function PracticeSelector({ sets, vocabulary, onStartGame, onStartFlashcard, onStartSpeedMatch, onStartQuiz, onStartTyping, onStartTypingBlitz, onStartMemory, onStartAudioQuiz, onStartSentenceScramble, onStartSrs, onStartKanaPractice }) {
   const [selectedSets, setSelectedSets] = useState([]);
   const [highScores, setHighScores] = useState([]);
   const [mode, setMode] = useState(null);
@@ -128,9 +128,22 @@ export default function PracticeSelector({ sets, vocabulary, onStartGame, onStar
   return (
     <div className="p-4 sm:p-6">
       <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 dark:text-white">Practice Mode</h2>
+      
       <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
-        <h3 className="text-base sm:text-lg font-semibold mb-4 dark:text-white">1. Select Set(s)</h3>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">You can select one or more sets to practice with.</p>
+        <h3 className="text-base sm:text-lg font-semibold mb-4 dark:text-white">Fundamentals Practice</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">Practice the basics. No set selection required.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <button onClick={onStartKanaPractice} className="p-4 rounded-lg border-2 transition-all text-center border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 cursor-pointer">
+            <Type className="w-8 h-8 mb-2 mx-auto text-indigo-500" />
+            <div className="font-semibold dark:text-white">Kana Practice</div>
+            <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Quiz for Hiragana & Katakana</div>
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+        <h3 className="text-base sm:text-lg font-semibold mb-4 dark:text-white">Vocabulary & Set Practice</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">1. Select Set(s)</p>
         <div className="space-y-2">
           {displaySets.map((set) => (
             <button key={set.id} onClick={() => handleSetSelection(set)} className={`w-full p-4 rounded-lg text-left transition-all ${selectedSets.some(s => s.id === set.id) ? 'bg-blue-500 text-white shadow-lg' : 'bg-gray-50 dark:bg-gray-600 hover:bg-gray-100 dark:hover:bg-gray-500'}`}>
