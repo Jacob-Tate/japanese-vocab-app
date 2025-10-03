@@ -116,12 +116,17 @@ export default function ParticlePractice({ onExit }) {
         <div className="bg-white dark:bg-gray-700 rounded-lg p-4">
           <h4 className="font-semibold mb-2 dark:text-white">Review your answers:</h4>
           <div className="space-y-2 max-h-64 overflow-y-auto">
-            {results.map((r, i) => (
-              <div key={i} className={`p-2 rounded ${r.isCorrect ? 'bg-green-100 dark:bg-green-900' : 'bg-red-100 dark:bg-red-900'}`}>
-                <p className='text-sm text-gray-600 dark:text-gray-400'>{r.question.english}</p>
-                <p className='font-semibold dark:text-white'>{r.question.japanese.replace('___', r.isCorrect ? `[${r.question.particle}]` : `[<span class="text-red-500 dark:text-red-400">${r.userAnswer}</span>→<span class="text-green-500 dark:text-green-400">${r.question.particle}</span>]`)}</p>
-              </div>
-            ))}
+            {results.map((r, i) => {
+              const reviewHtml = r.isCorrect
+                ? `[${r.question.particle}]`
+                : `[<span class="text-red-500 dark:text-red-400">${r.userAnswer}</span>→<span class="text-green-500 dark:text-green-400">${r.question.particle}</span>]`;
+              return (
+                <div key={i} className={`p-2 rounded ${r.isCorrect ? 'bg-green-100 dark:bg-green-900' : 'bg-red-100 dark:bg-red-900'}`}>
+                  <p className='text-sm text-gray-600 dark:text-gray-400'>{r.question.english}</p>
+                  <p className='font-semibold dark:text-white' dangerouslySetInnerHTML={{ __html: r.question.japanese.replace('___', reviewHtml) }} />
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
