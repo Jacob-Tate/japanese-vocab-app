@@ -1,21 +1,40 @@
 // src/components/SentenceScramble.jsx
 import React, { useState, useEffect } from 'react';
-import { RotateCcw, CheckCircle, XCircle, Trophy } from 'lucide-react';
+import { RotateCcw, CheckCircle, XCircle, Trophy, Loader2 } from 'lucide-react';
 import { api } from '../api';
+import kuromoji from 'kuromoji';
 
-const tokenizeJapanese = (sentence) => {
-  if (!sentence) return [];
-      
-  const particles = ['は', 'が', 'を', 'に', 'へ', 'で', 'と', 'も', 'の'];
-  const regex = new RegExp(`(${particles.join('|')})`, 'g');
-      
-  const tokens = sentence
-    .split(regex)
-    .filter(Boolean);
+// New helper function to group morphemes into logical chunks for the game
+const chunkJapanese = (tokens) => {
+  if (!tokens || tokens.length === 0) return [];
+  
+  return tokens.reduce((acc, token) => {
+    const lastChunk = acc[acc.length - 1];
+    
+    // Punctuation should always be its own chunk.
+    if (token.pos === '記号') { // Symbol/Punctuation
+      acc.push(token.surface_form);
+      return acc;
+    }
 
-  return tokens;
+    // These are parts of speech that should be attached to the previous word.
+    // Particles (助詞) are now excluded, so they become separate chunks.
+    const shouldMerge = 
+        token.pos === '助動詞' || // Auxiliary Verb (ます, ない, た)
+        (token.pos === '名詞' && token.pos_detail_1 === '接尾'); // Suffix (さん, ちゃん)
+    
+    // If there's a previous chunk, it's not punctuation, and the current token should be merged...
+    if (lastChunk && shouldMerge && !lastChunk.match(/^[。、！？]$/)) {
+        acc[acc.length - 1] = lastChunk + token.surface_form;
+    } else {
+      // Otherwise, start a new chunk.
+      acc.push(token.surface_form);
+    }
+    return acc;
+  }, []);
 };
- 
+
+
 export default function SentenceScramble({ set, sentences, onExit }) {
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -27,12 +46,24 @@ export default function SentenceScramble({ set, sentences, onExit }) {
   const [highScore, setHighScore] = useState(0);
   const [isNewHighScore, setIsNewHighScore] = useState(false);
   const isMultiSet = !!set.sourceSetIds;
+  const [tokenizer, setTokenizer] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    initGame();
-    if (!isMultiSet && set.id !== 'all') {
-      loadHighScore();
-    }
+    kuromoji.builder({ dicPath: "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/" })
+      .build((err, tokenizerInstance) => {
+        if (err) {
+          console.error("kuromoji build error:", err);
+          setIsLoading(false);
+          return;
+        }
+        setTokenizer(tokenizerInstance);
+        if (!isMultiSet && set.id !== 'all') {
+          loadHighScore();
+        }
+        initGame(tokenizerInstance);
+        setIsLoading(false);
+      });
   }, []);
 
   const loadHighScore = async () => {
@@ -78,7 +109,7 @@ export default function SentenceScramble({ set, sentences, onExit }) {
     }
   };
 
-  const initGame = () => {
+  const initGame = (tokenizerInstance) => {
     const gameSentences = sentences.filter(s => (set.sentenceIds || []).includes(s.id));
     const shuffled = [...gameSentences].sort(() => Math.random() - 0.5);
     setQuestions(shuffled);
@@ -87,12 +118,13 @@ export default function SentenceScramble({ set, sentences, onExit }) {
     setIsComplete(false);
     setIsNewHighScore(false);
     if (shuffled.length > 0) {
-      setupQuestion(shuffled[0]);
+      setupQuestion(shuffled[0], tokenizerInstance);
     }
   };
 
-  const setupQuestion = (sentence) => {
-    const tokens = tokenizeJapanese(sentence.japanese);
+  const setupQuestion = (sentence, tokenizerInstance) => {
+    const rawTokens = tokenizerInstance.tokenize(sentence.japanese);
+    const tokens = chunkJapanese(rawTokens);
     setWordBank(tokens.sort(() => Math.random() - 0.5));
     setAnswer([]);
     setFeedback(null);
@@ -127,13 +159,24 @@ export default function SentenceScramble({ set, sentences, onExit }) {
     if (currentIndex < questions.length - 1) {
       const nextIndex = currentIndex + 1;
       setCurrentIndex(nextIndex);
-      setupQuestion(questions[nextIndex]);
+      setupQuestion(questions[nextIndex], tokenizer);
     } else {
       setIsComplete(true);
       saveGameCompletion(currentScore);
     }
   };
       
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6 text-center">
+        <div className="flex flex-col items-center justify-center h-full">
+            <Loader2 className="animate-spin text-blue-500 h-12 w-12 mb-4" />
+            <p className="text-lg dark:text-gray-300">Preparing sentence analysis tools...</p>
+        </div>
+      </div>
+    );
+  }
+  
   if (questions.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6 text-center">
@@ -155,7 +198,7 @@ export default function SentenceScramble({ set, sentences, onExit }) {
             <Trophy size={24} /> New High Score!
           </p>
         )}
-        <button onClick={initGame} className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 flex items-center gap-2 mx-auto">
+        <button onClick={() => initGame(tokenizer)} className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 flex items-center gap-2 mx-auto">
           <RotateCcw size={20} /> Play Again
         </button>
         <button onClick={onExit} className="mt-4 text-sm text-gray-600 dark:text-gray-400 hover:underline">Exit to menu</button>

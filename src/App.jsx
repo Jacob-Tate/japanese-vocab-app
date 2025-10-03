@@ -1,6 +1,6 @@
 // src/App.jsx
 import React, { useState, useEffect } from 'react';
-import { Book, Layers, Play, MessageSquare, BarChart3, Download, Moon, Sun } from 'lucide-react';
+import { Book, Layers, Play, MessageSquare, BarChart3, Download, Moon, Sun, BookOpen } from 'lucide-react';
 import { api } from './api';
 import VocabularyManager from './components/VocabularyManager';
 import SentenceManager from './components/SentenceManager';
@@ -21,6 +21,7 @@ import TypingBlitz from './components/TypingBlitz';
 import SrsPractice from './components/SrsPractice';
 import KanaPractice from './components/KanaPractice';
 import CountersQuiz from './components/CountersQuiz';
+import Dictionary from './components/Dictionary';
 
 export default function JapaneseVocabApp() {
   const [vocabulary, setVocabulary] = useState([]);
@@ -125,6 +126,9 @@ export default function JapaneseVocabApp() {
             <button onClick={() => setCurrentView('practice')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${currentView === 'practice' ? 'bg-blue-500 text-white' : 'bg-white dark:bg-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
               <Play size={20} /> Practice
             </button>
+            <button onClick={() => setCurrentView('dictionary')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${currentView === 'dictionary' ? 'bg-blue-500 text-white' : 'bg-white dark:bg-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
+              <BookOpen size={20} /> Dictionary
+            </button>
             <button onClick={() => setCurrentView('stats')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${currentView === 'stats' ? 'bg-blue-500 text-white' : 'bg-white dark:bg-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
               <BarChart3 size={20} /> Stats
             </button>
@@ -155,6 +159,7 @@ export default function JapaneseVocabApp() {
                 onStartCountersQuiz={() => setActiveGame('countersQuiz')}
               />
             )}
+            {currentView === 'dictionary' && <Dictionary />}
             {currentView === 'stats' && <Statistics />}
             {currentView === 'import' && <ImportExport onRefresh={loadData} />}
           </div>

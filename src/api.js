@@ -156,5 +156,16 @@ export const api = {
       body: JSON.stringify({ wordId }) // wordId will be null for global reset
     });
     return response.json();
+  },
+  
+  // Dictionary API
+  async searchDictionary(term) {
+    if (!term) return { data: [] };
+    const response = await fetch(`${API_URL}/dictionary/${term}`);
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to search dictionary.');
+    }
+    return response.json();
   }
 };

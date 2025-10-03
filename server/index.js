@@ -254,6 +254,23 @@ app.delete('/api/srs', async (req, res) => {
   }
 });
 
+// Dictionary search proxy
+app.get('/api/dictionary/:term', async (req, res) => {
+  try {
+    const term = encodeURIComponent(req.params.term);
+    // Use jisho.org's unofficial API
+    const response = await fetch(`https://jisho.org/api/v1/search/words?keyword=${term}`);
+    if (!response.ok) {
+      throw new Error(`Jisho API responded with status ${response.status}`);
+    }
+    const data = await response.json();
+    res.json(data);
+  } catch (error) {
+    console.error('Dictionary proxy error:', error);
+    res.status(500).json({ error: 'Failed to fetch dictionary results.' });
+  }
+});
+
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
