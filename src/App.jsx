@@ -22,6 +22,7 @@ import SrsPractice from './components/SrsPractice';
 import KanaPractice from './components/KanaPractice';
 import CountersQuiz from './components/CountersQuiz';
 import Dictionary from './components/Dictionary';
+import Crossword from './components/Crossword';
 
 export default function JapaneseVocabApp() {
   const [vocabulary, setVocabulary] = useState([]);
@@ -84,6 +85,7 @@ export default function JapaneseVocabApp() {
     srs: <SrsPractice set={activeSet} onExit={exitGame} />,
     kanaPractice: <KanaPractice onExit={exitGame} />,
     countersQuiz: <CountersQuiz onExit={exitGame} />,
+    crossword: <Crossword set={activeSet} vocabulary={vocabulary} onExit={exitGame} />,
   };
 
   if (activeGame && gameComponents[activeGame]) {
@@ -157,6 +159,7 @@ export default function JapaneseVocabApp() {
                 onStartSrs={(set) => { setActiveSet(set); setActiveGame('srs'); }}
                 onStartKanaPractice={() => setActiveGame('kanaPractice')}
                 onStartCountersQuiz={() => setActiveGame('countersQuiz')}
+                onStartCrossword={(set) => { setActiveSet(set); setActiveGame('crossword'); }}
               />
             )}
             {currentView === 'dictionary' && <Dictionary />}

@@ -56,7 +56,8 @@ export default function Statistics() {
     memory: 'Memory Pairs',
     audio_quiz: 'Audio Quiz',
     sentence_scramble: 'Sentence Scramble',
-    typing_blitz: 'Typing Blitz'
+    typing_blitz: 'Typing Blitz',
+    crossword: 'Crossword'
   };
 
   return (

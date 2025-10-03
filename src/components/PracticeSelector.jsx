@@ -1,6 +1,6 @@
 // src/components/PracticeSelector.jsx
 import React, { useState, useEffect } from 'react';
-import { Book, Play, Layers, Zap, ListChecks, Keyboard, Grid3x3, Volume2, Trophy, MessageSquare, Diameter, Brain, Type, Sigma } from 'lucide-react';
+import { Book, Play, Layers, Zap, ListChecks, Keyboard, Grid3x3, Volume2, Trophy, MessageSquare, Diameter, Brain, Type, Sigma, Grid } from 'lucide-react';
 import { api } from '../api';
 
 function HighScores({ scores }) {
@@ -10,7 +10,7 @@ function HighScores({ scores }) {
 
   const gameModeNames = {
     speedmatch: 'Speed Match', quiz: 'Quiz', typing: 'Typing',
-    memory: 'Memory Pairs', audio_quiz: 'Audio Quiz'
+    memory: 'Memory Pairs', audio_quiz: 'Audio Quiz', crossword: 'Crossword'
   };
 
   return (
@@ -23,7 +23,7 @@ function HighScores({ scores }) {
   );
 }
 
-export default function PracticeSelector({ sets, vocabulary, onStartGame, onStartFlashcard, onStartSpeedMatch, onStartQuiz, onStartTyping, onStartTypingBlitz, onStartMemory, onStartAudioQuiz, onStartSentenceScramble, onStartSrs, onStartKanaPractice, onStartCountersQuiz }) {
+export default function PracticeSelector({ sets, vocabulary, onStartGame, onStartFlashcard, onStartSpeedMatch, onStartQuiz, onStartTyping, onStartTypingBlitz, onStartMemory, onStartAudioQuiz, onStartSentenceScramble, onStartSrs, onStartKanaPractice, onStartCountersQuiz, onStartCrossword }) {
   const [selectedSets, setSelectedSets] = useState([]);
   const [highScores, setHighScores] = useState([]);
   const [mode, setMode] = useState(null);
@@ -92,6 +92,7 @@ export default function PracticeSelector({ sets, vocabulary, onStartGame, onStar
         case 'sentenceScramble': onStartSentenceScramble(gameSet); break;
         case 'typingBlitz': onStartTypingBlitz(gameSet, startingSide, romajiMode); break;
         case 'srs': onStartSrs(gameSet); break;
+        case 'crossword': onStartCrossword(gameSet); break;
       }
     }
   };
@@ -106,6 +107,7 @@ export default function PracticeSelector({ sets, vocabulary, onStartGame, onStar
     { key: 'typingBlitz', name: 'Typing Blitz', desc: 'Falling words arcade game', icon: Diameter, color: 'red', content: 'words' },
     { key: 'memory', name: 'Memory Pairs', desc: 'Classic memory card game', icon: Grid3x3, color: 'pink', content: 'words' },
     { key: 'audioQuiz', name: 'Audio Quiz', desc: 'Listen and choose', icon: Volume2, color: 'teal', content: 'words' },
+    { key: 'crossword', name: 'Crossword Puzzle', desc: 'Fill in the grid', icon: Grid, color: 'gray', content: 'words' },
   ];
   const sentenceGameModes = [
     { key: 'sentenceScramble', name: 'Sentence Scramble', desc: 'Unscramble the sentence', icon: MessageSquare, color: 'indigo', content: 'sentences' },
