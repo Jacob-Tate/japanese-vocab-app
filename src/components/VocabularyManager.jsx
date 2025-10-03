@@ -1,6 +1,6 @@
 // src/components/VocabularyManager.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, X, Check, Search, AlertTriangle, Clock, RotateCcw, Layers } from 'lucide-react';
+import { Plus, X, Check, Search, AlertTriangle, Clock, RotateCcw, Layers, BookOpen, Loader2, Star } from 'lucide-react';
 import { api } from '../api';
 
 // Helper function to format the SRS due date
@@ -36,6 +36,10 @@ const formatDueDate = (dueDateStr) => {
   return { text: `In ${diffDays} days`, color: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300' };
 };
 
+const formatTag = (tag) => {
+    return tag.replace('wanikani', 'WaniKani ').replace('jlpt-n', 'JLPT N');
+}
+
 export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
   const [japanese, setJapanese] = useState('');
   const [english, setEnglish] = useState('');
@@ -48,6 +52,13 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
   const [wordSets, setWordSets] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const japaneseInputRef = useRef(null);
+
+  // State for Definition Modal
+  const [defModalOpen, setDefModalOpen] = useState(false);
+  const [defWord, setDefWord] = useState(null);
+  const [defResults, setDefResults] = useState([]);
+  const [defLoading, setDefLoading] = useState(false);
+  const [defError, setDefError] = useState(null);
 
   useEffect(() => {
     const inputElement = japaneseInputRef.current;
@@ -160,6 +171,29 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
     );
   };
 
+  const handleShowDefinition = async (word) => {
+    setDefWord(word);
+    setDefModalOpen(true);
+    setDefLoading(true);
+    setDefError(null);
+    try {
+      const response = await api.searchDictionary(word.japanese);
+      setDefResults(response.data);
+    } catch (e) {
+      setDefError(e.message);
+      setDefResults([]);
+    } finally {
+      setDefLoading(false);
+    }
+  };
+
+  const handleCloseDefinitionModal = () => {
+    setDefModalOpen(false);
+    setDefWord(null);
+    setDefResults([]);
+    setDefError(null);
+  };
+
   const filteredVocabulary = vocabulary.filter(word =>
     word.japanese.toLowerCase().includes(searchTerm.toLowerCase()) ||
     word.english.toLowerCase().includes(searchTerm.toLowerCase())
@@ -214,6 +248,56 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
               </button>
               <button onClick={handleCloseSetsModal} className="flex-1 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 font-semibold">
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {defModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full p-4 sm:p-6 max-h-[90vh] flex flex-col">
+            <h3 className="text-lg sm:text-xl font-bold mb-4 dark:text-white flex-shrink-0">Definition for: <span className="text-blue-600 dark:text-blue-400">{defWord.japanese}</span></h3>
+            <div className="flex-grow overflow-y-auto pr-2">
+              {defLoading && <div className="flex justify-center items-center h-full"><Loader2 className="animate-spin text-blue-500" size={48} /></div>}
+              {defError && <div className="text-red-500 dark:text-red-400 text-center">{defError}</div>}
+              <div className="space-y-4">
+                {defResults.length > 0 ? (
+                  defResults.map((result, index) => (
+                    <div key={result.slug + index} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2 mb-3">
+                          {result.japanese.map((jp, i) => (
+                              <div key={i} className="flex items-baseline">
+                                  <span className="text-2xl font-bold dark:text-white">{jp.word || jp.reading}</span>
+                                  {jp.word && <span className="ml-2 text-md text-gray-600 dark:text-gray-300">({jp.reading})</span>}
+                              </div>
+                          ))}
+                      </div>
+                      <div className="flex flex-wrap gap-2 mb-4">
+                          {result.is_common && <span className="flex items-center gap-1 text-xs font-semibold bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 px-2 py-1 rounded-full"><Star size={12}/> Common word</span>}
+                          {result.tags.map(tag => <span key={tag} className="text-xs font-semibold bg-gray-100 text-gray-800 dark:bg-gray-600 dark:text-gray-300 px-2 py-1 rounded-full">{formatTag(tag)}</span>)}
+                      </div>
+                      {result.senses.map((sense, i) => (
+                          <div key={i} className="border-t dark:border-gray-600 pt-3 mt-3 first:border-t-0 first:pt-0 first:mt-0">
+                              <div className="flex">
+                                  <span className="text-gray-500 dark:text-gray-400 mr-3">{i + 1}.</span>
+                                  <div>
+                                      <p className="text-gray-800 dark:text-gray-200">{sense.english_definitions.join('; ')}</p>
+                                      <p className="text-sm text-gray-500 dark:text-gray-400 italic mt-1">{sense.parts_of_speech.join(', ')}</p>
+                                  </div>
+                              </div>
+                          </div>
+                      ))}
+                    </div>
+                  ))
+                ) : (
+                  !defLoading && <p className="text-center text-gray-500 dark:text-gray-400">No results found.</p>
+                )}
+              </div>
+            </div>
+            <div className="pt-4 mt-4 border-t dark:border-gray-600 flex-shrink-0">
+              <button onClick={handleCloseDefinitionModal} className="w-full bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 font-semibold">
+                Close
               </button>
             </div>
           </div>
@@ -281,6 +365,7 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
                       <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-semibold ${srsStatus.color}`}>{srsStatus.text}</span></td>
                       <td className="px-4 py-3 text-center">
                         <div className="flex justify-center items-center gap-2">
+                          <button onClick={() => handleShowDefinition(word)} className="text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300" title="See definition"><BookOpen size={18} /></button>
                           <button onClick={() => handleOpenSetsModal(word)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" title="Manage sets"><Layers size={18} /></button>
                           {word.due_date && <button onClick={() => handleResetSrs(word.id, word.japanese)} className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" title="Reset SRS progress for this word"><RotateCcw size={18} /></button>}
                           <button onClick={() => handleDelete(word.id)} className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" title="Delete word"><X size={20} /></button>
@@ -308,6 +393,7 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
                     <div className="flex items-center gap-2"><Clock size={14} className="text-gray-500 dark:text-gray-400"/><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${srsStatus.color}`}>{srsStatus.text}</span></div>
                   </div>
                   <div className="flex flex-col items-center gap-2">
+                    <button onClick={() => handleShowDefinition(word)} className="text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 p-2" title="See definition"><BookOpen size={20} /></button>
                     <button onClick={() => handleOpenSetsModal(word)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2" title="Manage sets"><Layers size={20} /></button>
                     {word.due_date && <button onClick={() => handleResetSrs(word.id, word.japanese)} className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 p-2" title="Reset SRS progress for this word"><RotateCcw size={20} /></button>}
                     <button onClick={() => handleDelete(word.id)} className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-2" title="Delete word"><X size={20} /></button>
