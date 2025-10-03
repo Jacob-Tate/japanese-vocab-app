@@ -14,7 +14,7 @@ const speak = (text, lang = 'ja-JP') => {
   }
 };
 
-export default function AudioQuiz({ set, vocabulary, onExit, questionCount = 10 }) {
+export default function AudioQuiz({ set, vocabulary, onExit, repetitions = 1 }) {
   const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
@@ -47,7 +47,7 @@ export default function AudioQuiz({ set, vocabulary, onExit, questionCount = 10 
     const payload = {
       gameMode: 'audio_quiz',
       score: finalScore,
-      metadata: { questionCount },
+      metadata: { repetitions },
     };
     if (isMultiSet) {
       payload.setIds = set.sourceSetIds;
@@ -77,20 +77,17 @@ export default function AudioQuiz({ set, vocabulary, onExit, questionCount = 10 
   const initQuiz = () => {
     const wordsInSet = vocabulary.filter(v => set.wordIds.includes(v.id));
     if (wordsInSet.length < 4) {
-      // Not enough words to create a meaningful quiz
       setQuestions([]);
       return;
     }
             
-    let questionPool = [...wordsInSet];
-    while(questionPool.length < questionCount) {
+    let questionPool = [];
+    for (let i = 0; i < repetitions; i++) {
         questionPool.push(...wordsInSet);
     }
+    questionPool.sort(() => Math.random() - 0.5);
 
-    const quizQuestions = questionPool
-      .sort(() => Math.random() - 0.5)
-      .slice(0, questionCount)
-      .map((correctWord) => {
+    const quizQuestions = questionPool.map((correctWord) => {
         const distractors = wordsInSet
           .filter(w => w.id !== correctWord.id)
           .sort(() => Math.random() - 0.5)

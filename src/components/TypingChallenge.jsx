@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { RotateCcw, CheckCircle, XCircle, AlertCircle, Trophy } from 'lucide-react';
 import { api } from '../api';
 
-export default function TypingChallenge({ set, vocabulary, onExit, startingSide = 'japanese', questionCount = 10, romajiMode = false }) {
+export default function TypingChallenge({ set, vocabulary, onExit, startingSide = 'japanese', repetitions = 1, romajiMode = false }) {
   const [words, setWords] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userInput, setUserInput] = useState('');
@@ -41,7 +41,7 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
     const payload = {
       gameMode: 'typing',
       score: finalScore,
-      metadata: { questionCount, startingSide, romajiMode },
+      metadata: { repetitions, startingSide, romajiMode },
     };
     if (isMultiSet) {
       payload.setIds = set.sourceSetIds;
@@ -77,12 +77,12 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
   const initChallenge = () => {
     const filteredWords = vocabulary.filter(v => set.wordIds.includes(v.id));
             
-    let questionPool = [...filteredWords];
-    while (questionPool.length > 0 && questionPool.length < questionCount) {
-      questionPool = [...questionPool, ...filteredWords];
+    let questionPool = [];
+    for (let i = 0; i < repetitions; i++) {
+        questionPool.push(...filteredWords);
     }
             
-    const shuffled = questionPool.sort(() => Math.random() - 0.5).slice(0, questionCount);
+    const shuffled = questionPool.sort(() => Math.random() - 0.5);
             
     setWords(shuffled);
     setCurrentIndex(0);

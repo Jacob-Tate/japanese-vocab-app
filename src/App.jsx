@@ -29,9 +29,8 @@ export default function JapaneseVocabApp() {
   const [currentView, setCurrentView] = useState('vocab');
   const [activeGame, setActiveGame] = useState(null);
   const [activeSet, setActiveSet] = useState(null);
-  const [gameRepetitions, setGameRepetitions] = useState(3);
+  const [gameRepetitions, setGameRepetitions] = useState(1);
   const [flashcardStartingSide, setFlashcardStartingSide] = useState('japanese');
-  const [questionCount, setQuestionCount] = useState(10);
   const [romajiMode, setRomajiMode] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
 
@@ -75,10 +74,10 @@ export default function JapaneseVocabApp() {
     matching: <MatchingGame set={activeSet} vocabulary={vocabulary} repetitions={gameRepetitions} onExit={exitGame} />,
     speedmatch: <SpeedMatch set={activeSet} vocabulary={vocabulary} repetitions={gameRepetitions} onExit={exitGame} />,
     flashcard: <FlashcardDrill set={activeSet} vocabulary={vocabulary} startingSide={flashcardStartingSide} onExit={exitGame} />,
-    quiz: <MultipleChoiceQuiz set={activeSet} vocabulary={vocabulary} startingSide={flashcardStartingSide} questionCount={questionCount} onExit={exitGame} />,
-    typing: <TypingChallenge set={activeSet} vocabulary={vocabulary} startingSide={flashcardStartingSide} questionCount={questionCount} romajiMode={romajiMode} onExit={exitGame} />,
+    quiz: <MultipleChoiceQuiz set={activeSet} vocabulary={vocabulary} startingSide={flashcardStartingSide} repetitions={gameRepetitions} onExit={exitGame} />,
+    typing: <TypingChallenge set={activeSet} vocabulary={vocabulary} startingSide={flashcardStartingSide} repetitions={gameRepetitions} romajiMode={romajiMode} onExit={exitGame} />,
     memory: <MemoryPairs set={activeSet} vocabulary={vocabulary} onExit={exitGame} />,
-    audioQuiz: <AudioQuiz set={activeSet} vocabulary={vocabulary} questionCount={questionCount} onExit={exitGame} />,
+    audioQuiz: <AudioQuiz set={activeSet} vocabulary={vocabulary} repetitions={gameRepetitions} onExit={exitGame} />,
     sentenceScramble: <SentenceScramble set={activeSet} sentences={sentences} onExit={exitGame} />,
     typingBlitz: <TypingBlitz set={activeSet} vocabulary={vocabulary} onExit={exitGame} fallingLanguage={flashcardStartingSide} romajiMode={romajiMode} />,
     srs: <SrsPractice set={activeSet} onExit={exitGame} />,
@@ -145,11 +144,11 @@ export default function JapaneseVocabApp() {
                 onStartGame={(set, reps) => { setActiveSet(set); setGameRepetitions(reps); setActiveGame('matching'); }}
                 onStartSpeedMatch={(set, reps) => { setActiveSet(set); setGameRepetitions(reps); setActiveGame('speedmatch'); }}
                 onStartFlashcard={(set, side) => { setActiveSet(set); setFlashcardStartingSide(side); setActiveGame('flashcard'); }}
-                onStartQuiz={(set, side, count) => { setActiveSet(set); setFlashcardStartingSide(side); setQuestionCount(count); setActiveGame('quiz'); }}
-                onStartTyping={(set, side, count, romaji) => { setActiveSet(set); setFlashcardStartingSide(side); setQuestionCount(count); setRomajiMode(romaji); setActiveGame('typing'); }}
+                onStartQuiz={(set, side, reps) => { setActiveSet(set); setFlashcardStartingSide(side); setGameRepetitions(reps); setActiveGame('quiz'); }}
+                onStartTyping={(set, side, reps, romaji) => { setActiveSet(set); setFlashcardStartingSide(side); setGameRepetitions(reps); setRomajiMode(romaji); setActiveGame('typing'); }}
                 onStartTypingBlitz={(set, side, romaji) => { setActiveSet(set); setFlashcardStartingSide(side); setRomajiMode(romaji); setActiveGame('typingBlitz'); }}
                 onStartMemory={(set) => { setActiveSet(set); setActiveGame('memory'); }}
-                onStartAudioQuiz={(set, count) => { setActiveSet(set); setQuestionCount(count); setActiveGame('audioQuiz'); }}
+                onStartAudioQuiz={(set, reps) => { setActiveSet(set); setGameRepetitions(reps); setActiveGame('audioQuiz'); }}
                 onStartSentenceScramble={(set) => { setActiveSet(set); setActiveGame('sentenceScramble'); }}
                 onStartSrs={(set) => { setActiveSet(set); setActiveGame('srs'); }}
                 onStartKanaPractice={() => setActiveGame('kanaPractice')}

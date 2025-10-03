@@ -27,9 +27,8 @@ export default function PracticeSelector({ sets, vocabulary, onStartGame, onStar
   const [selectedSets, setSelectedSets] = useState([]);
   const [highScores, setHighScores] = useState([]);
   const [mode, setMode] = useState(null);
-  const [repetitions, setRepetitions] = useState(3);
+  const [repetitions, setRepetitions] = useState(1);
   const [startingSide, setStartingSide] = useState('japanese');
-  const [questionCount, setQuestionCount] = useState(10);
   const [romajiMode, setRomajiMode] = useState(false);
 
   const allVocabSet = {
@@ -86,10 +85,10 @@ export default function PracticeSelector({ sets, vocabulary, onStartGame, onStar
         case 'matching': onStartGame(gameSet, repetitions); break;
         case 'speedmatch': onStartSpeedMatch(gameSet, repetitions); break;
         case 'flashcard': onStartFlashcard(gameSet, startingSide); break;
-        case 'quiz': onStartQuiz(gameSet, startingSide, questionCount); break;
-        case 'typing': onStartTyping(gameSet, startingSide, questionCount, romajiMode); break;
+        case 'quiz': onStartQuiz(gameSet, startingSide, repetitions); break;
+        case 'typing': onStartTyping(gameSet, startingSide, repetitions, romajiMode); break;
         case 'memory': onStartMemory(gameSet); break;
-        case 'audioQuiz': onStartAudioQuiz(gameSet, questionCount); break;
+        case 'audioQuiz': onStartAudioQuiz(gameSet, repetitions); break;
         case 'sentenceScramble': onStartSentenceScramble(gameSet); break;
         case 'typingBlitz': onStartTypingBlitz(gameSet, startingSide, romajiMode); break;
         case 'srs': onStartSrs(gameSet); break;
@@ -113,7 +112,6 @@ export default function PracticeSelector({ sets, vocabulary, onStartGame, onStar
   ];
 
   const filteredWordGameModes = wordGameModes.filter(m => {
-    // Only show the SRS option if a single set is selected.
     if (m.key === 'srs') {
       return selectedSets.length === 1;
     }
@@ -200,51 +198,22 @@ export default function PracticeSelector({ sets, vocabulary, onStartGame, onStar
 
       {selectedSets.length > 0 && mode && (
         <>
-          {(mode === 'matching' || mode === 'speedmatch') && (
+          {(mode === 'matching' || mode === 'speedmatch' || mode === 'quiz' || mode === 'typing' || mode === 'audioQuiz') && (
             <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
               <h3 className="text-base sm:text-lg font-semibold mb-4 dark:text-white">Game Settings</h3>
-              <div>
+              <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Repetitions per word</label>
                 <div className="flex items-center gap-4">
                   <input type="range" min="1" max="5" value={repetitions} onChange={(e) => setRepetitions(Number(e.target.value))} className="flex-1"/>
                   <span className="text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400 w-8 sm:w-12 text-center">{repetitions}</span>
                 </div>
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-2">Each word will appear {repetitions} time{repetitions !== 1 ? 's' : ''} ({(combinedSetForCount.wordIds || []).length} words × {repetitions} = {(combinedSetForCount.wordIds || []).length * repetitions} total matches)</p>
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-2">
+                  Each word will appear {repetitions} time{repetitions !== 1 ? 's' : ''}. Total questions: {(combinedSetForCount.wordIds || []).length} × {repetitions} = {(combinedSetForCount.wordIds || []).length * repetitions}.
+                </p>
               </div>
-            </div>
-          )}
-                    
-          {(mode === 'flashcard' || mode === 'quiz' || mode === 'typing' || mode === 'audioQuiz') && (
-            <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
-              <h3 className="text-base sm:text-lg font-semibold mb-4 dark:text-white">{mode.charAt(0).toUpperCase() + mode.slice(1)} Settings</h3>
-                            
-              {(mode === 'quiz' || mode === 'typing' || mode === 'audioQuiz') && (
+              
+              {(mode === 'quiz' || mode === 'typing') && (
                 <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Number of questions</label>
-                  <div className="flex items-center gap-4">
-                    <input type="range" min="5" max="30" value={questionCount} onChange={(e) => setQuestionCount(Number(e.target.value))} className="flex-1"/>
-                    <span className="text-xl sm:text-2xl font-bold text-blue-600 dark:text-blue-400 w-12 text-center">{questionCount}</span>
-                  </div>
-                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-2">
-                    {combinedSetForCount && questionCount > (combinedSetForCount.wordIds || []).length && (combinedSetForCount.wordIds || []).length > 0 ? `Words will repeat (only ${(combinedSetForCount.wordIds || []).length} unique words in set)`: `${questionCount} questions selected`}
-                  </p>
-                </div>
-              )}
-                            
-              {mode === 'typing' && startingSide === 'english' && (
-                <div className="mb-6">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" checked={romajiMode} onChange={(e) => setRomajiMode(e.target.checked)} className="w-5 h-5 text-blue-600"/>
-                    <div>
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Enable Romaji Input</span>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Type in romaji (e.g., "konnichiwa") instead of kana</p>
-                    </div>
-                  </label>
-                </div>
-              )}
-                            
-              {(mode === 'flashcard' || mode === 'quiz' || mode === 'typing') && (
-                <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Starting side</label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <button onClick={() => setStartingSide('japanese')} className={`p-3 sm:p-4 rounded-lg border-2 transition-all ${startingSide === 'japanese' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900' : 'border-gray-200 dark:border-gray-600 hover:border-blue-200 dark:hover:border-blue-400'}`}>
@@ -258,13 +227,43 @@ export default function PracticeSelector({ sets, vocabulary, onStartGame, onStar
                   </div>
                 </div>
               )}
+              
+              {mode === 'typing' && startingSide === 'english' && (
+                <div>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" checked={romajiMode} onChange={(e) => setRomajiMode(e.target.checked)} className="w-5 h-5 text-blue-600"/>
+                    <div>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Enable Romaji Input</span>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Type in romaji (e.g., "konnichiwa") instead of kana</p>
+                    </div>
+                  </label>
+                </div>
+              )}
+            </div>
+          )}
+
+          {mode === 'flashcard' && (
+            <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+              <h3 className="text-base sm:text-lg font-semibold mb-4 dark:text-white">Flashcard Settings</h3>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Starting side</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <button onClick={() => setStartingSide('japanese')} className={`p-3 sm:p-4 rounded-lg border-2 transition-all ${startingSide === 'japanese' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900' : 'border-gray-200 dark:border-gray-600 hover:border-blue-200 dark:hover:border-blue-400'}`}>
+                    <div className="font-semibold text-base sm:text-lg mb-1 dark:text-white">日本語 → English</div>
+                    <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Show Japanese first</div>
+                  </button>
+                  <button onClick={() => setStartingSide('english')} className={`p-3 sm:p-4 rounded-lg border-2 transition-all ${startingSide === 'english' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900' : 'border-gray-200 dark:border-gray-600 hover:border-blue-200 dark:hover:border-blue-400'}`}>
+                    <div className="font-semibold text-base sm:text-lg mb-1 dark:text-white">English → 日本語</div>
+                    <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Show English first</div>
+                  </button>
+                </div>
+              </div>
             </div>
           )}
                     
           {mode === 'typingBlitz' && (
             <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
               <h3 className="text-base sm:text-lg font-semibold mb-4 dark:text-white">Typing Blitz Settings</h3>
-                            
               {startingSide === 'english' && (
                 <div className="mb-6">
                   <label className="flex items-center gap-3 cursor-pointer">
@@ -276,7 +275,6 @@ export default function PracticeSelector({ sets, vocabulary, onStartGame, onStar
                   </label>
                 </div>
               )}
-              
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Falling Language</label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
