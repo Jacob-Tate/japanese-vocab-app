@@ -20,6 +20,7 @@ import ReloadPrompt from './ReloadPrompt';
 import TypingBlitz from './components/TypingBlitz';
 import SrsPractice from './components/SrsPractice';
 import KanaPractice from './components/KanaPractice';
+import CountersQuiz from './components/CountersQuiz';
 
 export default function JapaneseVocabApp() {
   const [vocabulary, setVocabulary] = useState([]);
@@ -82,11 +83,12 @@ export default function JapaneseVocabApp() {
     typingBlitz: <TypingBlitz set={activeSet} vocabulary={vocabulary} onExit={exitGame} fallingLanguage={flashcardStartingSide} romajiMode={romajiMode} />,
     srs: <SrsPractice set={activeSet} onExit={exitGame} />,
     kanaPractice: <KanaPractice onExit={exitGame} />,
+    countersQuiz: <CountersQuiz onExit={exitGame} />,
   };
 
   if (activeGame && gameComponents[activeGame]) {
-    if (activeGame === 'kanaPractice') {
-      return gameComponents.kanaPractice;
+    if (activeGame === 'kanaPractice' || activeGame === 'countersQuiz') {
+      return gameComponents[activeGame];
     }
     if (activeSet) {
       return gameComponents[activeGame];
@@ -151,6 +153,7 @@ export default function JapaneseVocabApp() {
                 onStartSentenceScramble={(set) => { setActiveSet(set); setActiveGame('sentenceScramble'); }}
                 onStartSrs={(set) => { setActiveSet(set); setActiveGame('srs'); }}
                 onStartKanaPractice={() => setActiveGame('kanaPractice')}
+                onStartCountersQuiz={() => setActiveGame('countersQuiz')}
               />
             )}
             {currentView === 'stats' && <Statistics />}

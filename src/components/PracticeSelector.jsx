@@ -1,6 +1,6 @@
 // src/components/PracticeSelector.jsx
 import React, { useState, useEffect } from 'react';
-import { Book, Play, Layers, Zap, ListChecks, Keyboard, Grid3x3, Volume2, Trophy, MessageSquare, Diameter, Brain, Type } from 'lucide-react';
+import { Book, Play, Layers, Zap, ListChecks, Keyboard, Grid3x3, Volume2, Trophy, MessageSquare, Diameter, Brain, Type, Sigma } from 'lucide-react';
 import { api } from '../api';
 
 function HighScores({ scores }) {
@@ -23,7 +23,7 @@ function HighScores({ scores }) {
   );
 }
 
-export default function PracticeSelector({ sets, vocabulary, onStartGame, onStartFlashcard, onStartSpeedMatch, onStartQuiz, onStartTyping, onStartTypingBlitz, onStartMemory, onStartAudioQuiz, onStartSentenceScramble, onStartSrs, onStartKanaPractice }) {
+export default function PracticeSelector({ sets, vocabulary, onStartGame, onStartFlashcard, onStartSpeedMatch, onStartQuiz, onStartTyping, onStartTypingBlitz, onStartMemory, onStartAudioQuiz, onStartSentenceScramble, onStartSrs, onStartKanaPractice, onStartCountersQuiz }) {
   const [selectedSets, setSelectedSets] = useState([]);
   const [highScores, setHighScores] = useState([]);
   const [mode, setMode] = useState(null);
@@ -137,6 +137,11 @@ export default function PracticeSelector({ sets, vocabulary, onStartGame, onStar
             <Type className="w-8 h-8 mb-2 mx-auto text-indigo-500" />
             <div className="font-semibold dark:text-white">Kana Practice</div>
             <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Quiz for Hiragana & Katakana</div>
+          </button>
+          <button onClick={onStartCountersQuiz} className="p-4 rounded-lg border-2 transition-all text-center border-gray-200 dark:border-gray-600 hover:border-blue-300 dark:hover:border-blue-500 cursor-pointer">
+            <Sigma className="w-8 h-8 mb-2 mx-auto text-orange-500" />
+            <div className="font-semibold dark:text-white">Counters Quiz</div>
+            <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">Practice counting things (本, 枚...)</div>
           </button>
         </div>
       </div>
