@@ -1,7 +1,8 @@
 // src/components/SentenceManager.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, X, Check, Search, AlertTriangle } from 'lucide-react';
+import { Plus, X, Check, Search, AlertTriangle, TextSelect } from 'lucide-react';
 import { api } from '../api';
+import ClozeGeneratorModal from './ClozeGeneratorModal';
 
 export default function SentenceManager({ sentences, onRefresh }) {
   const [japanese, setJapanese] = useState('');
@@ -10,6 +11,9 @@ export default function SentenceManager({ sentences, onRefresh }) {
   const [addError, setAddError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const japaneseInputRef = useRef(null);
+
+  const [isClozeModalOpen, setIsClozeModalOpen] = useState(false);
+  const [sentenceForCloze, setSentenceForCloze] = useState(null);
 
   useEffect(() => {
     const inputElement = japaneseInputRef.current;
@@ -22,6 +26,11 @@ export default function SentenceManager({ sentences, onRefresh }) {
       }
     };
   }, []);
+
+  const handleOpenClozeModal = (sentence) => {
+    setSentenceForCloze(sentence);
+    setIsClozeModalOpen(true);
+  };
 
   const handleAdd = async () => {
     if (japanese.trim() && english.trim()) {
@@ -53,6 +62,12 @@ export default function SentenceManager({ sentences, onRefresh }) {
   return (
     <div className="p-4 sm:p-6">
       <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 dark:text-white">Sentence Management</h2>
+
+      <ClozeGeneratorModal
+        isOpen={isClozeModalOpen}
+        sentence={sentenceForCloze}
+        onClose={() => setIsClozeModalOpen(false)}
+      />
             
       <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
         <h3 className="text-base sm:text-lg font-semibold mb-4 dark:text-white">Add New Sentence</h3>
@@ -105,9 +120,14 @@ export default function SentenceManager({ sentences, onRefresh }) {
                   <div className="font-medium mb-1 dark:text-white">{sentence.japanese}</div>
                   <div className="text-gray-600 dark:text-gray-300 text-sm">{sentence.english}</div>
                 </div>
-                <button onClick={() => handleDelete(sentence.id)} className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 ml-2 p-2 flex-shrink-0">
-                  <X size={20} />
-                </button>
+                <div className="flex items-center ml-2 flex-shrink-0">
+                   <button onClick={() => handleOpenClozeModal(sentence)} className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 p-2" title="Generate Cloze Deletion">
+                    <TextSelect size={20} />
+                  </button>
+                  <button onClick={() => handleDelete(sentence.id)} className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-2">
+                    <X size={20} />
+                  </button>
+                </div>
               </div>
             ))
           )}

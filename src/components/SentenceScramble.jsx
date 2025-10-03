@@ -3,37 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { RotateCcw, CheckCircle, XCircle, Trophy, Loader2 } from 'lucide-react';
 import { api } from '../api';
 import kuromoji from 'kuromoji';
-
-// New helper function to group morphemes into logical chunks for the game
-const chunkJapanese = (tokens) => {
-  if (!tokens || tokens.length === 0) return [];
-  
-  return tokens.reduce((acc, token) => {
-    const lastChunk = acc[acc.length - 1];
-    
-    // Punctuation should always be its own chunk.
-    if (token.pos === '記号') { // Symbol/Punctuation
-      acc.push(token.surface_form);
-      return acc;
-    }
-
-    // These are parts of speech that should be attached to the previous word.
-    // Particles (助詞) are now excluded, so they become separate chunks.
-    const shouldMerge = 
-        token.pos === '助動詞' || // Auxiliary Verb (ます, ない, た)
-        (token.pos === '名詞' && token.pos_detail_1 === '接尾'); // Suffix (さん, ちゃん)
-    
-    // If there's a previous chunk, it's not punctuation, and the current token should be merged...
-    if (lastChunk && shouldMerge && !lastChunk.match(/^[。、！？]$/)) {
-        acc[acc.length - 1] = lastChunk + token.surface_form;
-    } else {
-      // Otherwise, start a new chunk.
-      acc.push(token.surface_form);
-    }
-    return acc;
-  }, []);
-};
-
+import { chunkJapanese } from '../utils';
 
 export default function SentenceScramble({ set, sentences, onExit }) {
   const [questions, setQuestions] = useState([]);
