@@ -24,6 +24,7 @@ import CountersQuiz from './components/CountersQuiz';
 import Dictionary from './components/Dictionary';
 import Crossword from './components/Crossword';
 import ConjugationPractice from './components/ConjugationPractice';
+import ParticlePractice from './components/ParticlePractice';
 
 export default function JapaneseVocabApp() {
   const [vocabulary, setVocabulary] = useState([]);
@@ -88,10 +89,11 @@ export default function JapaneseVocabApp() {
     countersQuiz: <CountersQuiz onExit={exitGame} />,
     crossword: <Crossword set={activeSet} vocabulary={vocabulary} onExit={exitGame} />,
     conjugationPractice: <ConjugationPractice onExit={exitGame} />,
+    particlePractice: <ParticlePractice onExit={exitGame} />,
   };
 
   if (activeGame && gameComponents[activeGame]) {
-    if (activeGame === 'kanaPractice' || activeGame === 'countersQuiz' || activeGame === 'conjugationPractice') {
+    if (activeGame === 'kanaPractice' || activeGame === 'countersQuiz' || activeGame === 'conjugationPractice' || activeGame === 'particlePractice') {
       return gameComponents[activeGame];
     }
     if (activeSet) {
@@ -163,6 +165,7 @@ export default function JapaneseVocabApp() {
                 onStartCountersQuiz={() => setActiveGame('countersQuiz')}
                 onStartCrossword={(set) => { setActiveSet(set); setActiveGame('crossword'); }}
                 onStartConjugationPractice={() => setActiveGame('conjugationPractice')}
+                onStartParticlePractice={() => setActiveGame('particlePractice')}
               />
             )}
             {currentView === 'dictionary' && <Dictionary />}
