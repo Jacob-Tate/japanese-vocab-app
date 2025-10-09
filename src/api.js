@@ -165,7 +165,7 @@ export const api = {
     return response.json();
   },
 
-  // SRS API
+  // Vocabulary SRS API
   async getDueSrsWords(setId) {
     const response = await fetch(`${API_URL}/srs/due?setId=${setId || 'all'}`);
     return response.json();
@@ -193,7 +193,48 @@ export const api = {
     });
     return response.json();
   },
+
+  // Sentence SRS API
+  async getDueSrsSentences(setId) {
+    const response = await fetch(`${API_URL}/srs/sentences/due?setId=${setId || 'all'}`);
+    return response.json();
+  },
+
+  async postSrsReviewSentence(sentenceId, quality) {
+    const response = await fetch(`${API_URL}/srs/sentences/review`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sentenceId, quality })
+    });
+    return response.json();
+  },
+
+  async getSrsStatsSentences(setId) {
+    const response = await fetch(`${API_URL}/srs/sentences/stats?setId=${setId || 'all'}`);
+    return response.json();
+  },
   
+  // App Settings API
+  async getSettings() {
+    const response = await fetch(`${API_URL}/settings`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch settings.');
+    }
+    return response.json();
+  },
+  
+  async updateSetting(key, value) {
+    const response = await fetch(`${API_URL}/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, value })
+    });
+    if (!response.ok) {
+      throw new Error('Failed to update setting.');
+    }
+    return response.json();
+  },
+
   // Dictionary API
   async searchDictionary(term) {
     if (!term) return { data: [] };

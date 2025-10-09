@@ -304,7 +304,7 @@ app.get('/api/game-statistics', async (req, res) => {
   }
 });
 
-// SRS Routes
+// Vocabulary SRS Routes
 app.get('/api/srs/due', async (req, res) => {
   try {
     const setId = req.query.setId && req.query.setId !== 'all' ? req.query.setId : null;
@@ -344,6 +344,64 @@ app.delete('/api/srs', async (req, res) => {
   try {
     const { wordId } = req.body; // wordId can be null/undefined for global reset
     await dbOps.resetSrsData(wordId);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Sentence SRS Routes
+app.get('/api/srs/sentences/due', async (req, res) => {
+  try {
+    const setId = req.query.setId && req.query.setId !== 'all' ? req.query.setId : null;
+    const limit = req.query.limit ? parseInt(req.query.limit, 10) : 20;
+    const sentences = await dbOps.getDueSrsSentences(setId, limit);
+    res.json(sentences);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/srs/sentences/review', async (req, res) => {
+  try {
+    const { sentenceId, quality } = req.body;
+    if (!sentenceId || !quality) {
+        return res.status(400).json({ error: 'sentenceId and quality are required' });
+    }
+    await dbOps.updateSrsReviewSentence(sentenceId, quality);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/srs/sentences/stats', async (req, res) => {
+  try {
+    const setId = req.query.setId && req.query.setId !== 'all' ? req.query.setId : null;
+    const stats = await dbOps.getSrsStatsSentences(setId);
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// NEW: App Settings Routes
+app.get('/api/settings', async (req, res) => {
+  try {
+    const settings = await dbOps.getSettings();
+    res.json(settings);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/settings', async (req, res) => {
+  try {
+    const { key, value } = req.body;
+    if (key === undefined || value === undefined) {
+      return res.status(400).json({ error: 'Key and value are required.' });
+    }
+    await dbOps.updateSetting(key, value);
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });

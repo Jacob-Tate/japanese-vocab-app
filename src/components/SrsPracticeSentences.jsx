@@ -1,7 +1,8 @@
 // src/components/SrsPracticeSentences.jsx
 import React, { useState, useEffect } from 'react';
-import { Brain, RotateCcw, Check, X } from 'lucide-react';
+import { Brain, RotateCcw, Check, X, Volume2 } from 'lucide-react';
 import { api } from '../api';
+import { playAudio } from '../utils/audio';
 
 export default function SrsPracticeSentences({ set, onExit, options }) {
   const [dueSentences, setDueSentences] = useState([]);
@@ -12,9 +13,18 @@ export default function SrsPracticeSentences({ set, onExit, options }) {
   const [sessionResults, setSessionResults] = useState({ correct: 0, incorrect: 0, reCorrect: 0 });
   const [isSessionComplete, setIsSessionComplete] = useState(false);
 
+  const currentCard = !isSessionComplete && dueSentences.length > 0 ? dueSentences[currentIndex] : null;
+
   useEffect(() => {
     loadSrsData();
   }, [set.id, options.reviewOnly]);
+
+  useEffect(() => {
+    // Autoplay audio when a new card is shown
+    if (currentCard) {
+      playAudio(currentCard);
+    }
+  }, [currentCard]);
 
   const loadSrsData = async () => {
     setIsLoading(true);
@@ -29,7 +39,9 @@ export default function SrsPracticeSentences({ set, onExit, options }) {
         setIsSessionComplete(true);
       }
     } catch (error) {
-      console.error("Failed to load Sentence SRS data", error);
+      console.error("Failed to load Sentence SRS data:", error);
+      setDueSentences([]);
+      setIsSessionComplete(true);
     } finally {
       setIsLoading(false);
     }
@@ -86,8 +98,6 @@ export default function SrsPracticeSentences({ set, onExit, options }) {
     );
   }
 
-  const currentCard = !isSessionComplete && dueSentences.length > 0 ? dueSentences[currentIndex] : null;
-
   if (isSessionComplete) {
     const totalReviewed = sessionResults.correct + sessionResults.incorrect;
     return (
@@ -126,12 +136,24 @@ export default function SrsPracticeSentences({ set, onExit, options }) {
         </div>
       </div>
       <div className="flex flex-col items-center">
-        <div onClick={() => setShowAnswer(true)} className="w-full max-w-2xl h-64 sm:h-80 bg-white dark:bg-gray-700 rounded-2xl shadow-2xl flex items-center justify-center p-6 sm:p-8 mb-6 transition-all cursor-pointer">
-          <div className="text-center">
-            <p className="text-xl sm:text-2xl md:text-3xl font-semibold mb-4 break-words dark:text-white">{currentCard.japanese}</p>
-            {showAnswer && (<p className="text-lg sm:text-xl text-gray-700 dark:text-gray-300">{currentCard.english}</p>)}
-            {!showAnswer && (<p className="text-gray-400 dark:text-gray-500 text-sm">Click to show answer</p>)}
+        <div className="relative w-full max-w-2xl">
+          <div onClick={() => setShowAnswer(true)} className="w-full h-64 sm:h-80 bg-white dark:bg-gray-700 rounded-2xl shadow-2xl flex items-center justify-center p-6 sm:p-8 mb-6 transition-all cursor-pointer">
+            <div className="text-center">
+              <p className="text-xl sm:text-2xl md:text-3xl font-semibold mb-4 break-words dark:text-white">{currentCard.japanese}</p>
+              {showAnswer && (<p className="text-lg sm:text-xl text-gray-700 dark:text-gray-300">{currentCard.english}</p>)}
+              {!showAnswer && (<p className="text-gray-400 dark:text-gray-500 text-sm">Click to show answer</p>)}
+            </div>
           </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (currentCard) playAudio(currentCard);
+            }}
+            className="absolute top-4 right-4 bg-blue-500 text-white rounded-full p-3 hover:bg-blue-600 transition-transform hover:scale-110"
+            title="Play audio"
+          >
+            <Volume2 size={24} />
+          </button>
         </div>
         {showAnswer ? (
           <div className="flex flex-col sm:flex-row gap-4 w-full max-w-2xl">

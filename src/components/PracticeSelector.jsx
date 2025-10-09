@@ -24,7 +24,7 @@ function HighScores({ scores }) {
   );
 }
 
-export default function PracticeSelector({ sets, vocabulary, onStartGame, onStartFlashcard, onStartSpeedMatch, onStartQuiz, onStartTyping, onStartTypingBlitz, onStartMemory, onStartAudioQuiz, onStartSentenceScramble, onStartSrs, onStartSrsSentences, onStartFlashcardSentences, onStartKanaPractice, onStartCountersQuiz, onStartCrossword, onStartConjugationPractice, onStartParticlePractice }) {
+export default function PracticeSelector({ sets, vocabulary, sentences, onStartGame, onStartFlashcard, onStartSpeedMatch, onStartQuiz, onStartTyping, onStartTypingBlitz, onStartMemory, onStartAudioQuiz, onStartSentenceScramble, onStartSrs, onStartSrsSentences, onStartFlashcardSentences, onStartKanaPractice, onStartCountersQuiz, onStartCrossword, onStartConjugationPractice, onStartParticlePractice }) {
   const [selectedSets, setSelectedSets] = useState([]);
   const [highScores, setHighScores] = useState([]);
   const [mode, setMode] = useState(null);
@@ -34,13 +34,13 @@ export default function PracticeSelector({ sets, vocabulary, onStartGame, onStar
   const [reviewOnlyMode, setReviewOnlyMode] = useState(false);
   const [isSrsSettingsModalOpen, setIsSrsSettingsModalOpen] = useState(false);
 
-  const allVocabSet = {
+  const allContentSet = {
     id: 'all',
-    name: 'All Vocabulary',
+    name: 'All Vocabulary & Sentences',
     wordIds: vocabulary.map(v => v.id),
-    sentenceIds: [],
+    sentenceIds: sentences.map(s => s.id),
   };
-  const displaySets = [allVocabSet, ...sets];
+  const displaySets = [allContentSet, ...sets];
 
   useEffect(() => {
     if (selectedSets.length === 1 && selectedSets[0].id !== 'all') {
@@ -53,7 +53,7 @@ export default function PracticeSelector({ sets, vocabulary, onStartGame, onStar
   const handleSetSelection = (set) => {
     setMode(null); // Reset mode when set selection changes
     if (set.id === 'all') {
-      setSelectedSets(prev => prev.some(s => s.id === 'all') ? [] : [allVocabSet]);
+      setSelectedSets(prev => prev.some(s => s.id === 'all') ? [] : [allContentSet]);
       return;
     }
 

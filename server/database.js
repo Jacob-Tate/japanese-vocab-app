@@ -157,7 +157,7 @@ db.serialize(() => {
     )
   `);
 
-  // NEW: Game history table (tracks every game session)
+  // Game history table (tracks every game session)
   db.run(`
     CREATE TABLE IF NOT EXISTS game_history (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -170,7 +170,7 @@ db.serialize(() => {
     )
   `);
 
-  // NEW: SRS data table
+  // SRS data table for vocabulary
   db.run(`
     CREATE TABLE IF NOT EXISTS srs_data (
       word_id INTEGER PRIMARY KEY,
@@ -181,6 +181,28 @@ db.serialize(() => {
       lapses INTEGER DEFAULT 0,
       last_reviewed DATETIME,
       FOREIGN KEY (word_id) REFERENCES vocabulary(id) ON DELETE CASCADE
+    )
+  `);
+
+  // SRS data table for sentences
+  db.run(`
+    CREATE TABLE IF NOT EXISTS srs_data_sentences (
+      sentence_id INTEGER PRIMARY KEY,
+      due_date DATETIME NOT NULL,
+      interval_days INTEGER DEFAULT 1,
+      ease_factor REAL DEFAULT 2.5,
+      repetitions INTEGER DEFAULT 0,
+      lapses INTEGER DEFAULT 0,
+      last_reviewed DATETIME,
+      FOREIGN KEY (sentence_id) REFERENCES sentences(id) ON DELETE CASCADE
+    )
+  `);
+
+  // NEW: App settings table
+  db.run(`
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
     )
   `);
 });
@@ -517,7 +539,7 @@ export const dbOps = {
     });
   },
 
-  // SRS operations
+  // SRS operations for Vocabulary
   getDueSrsWords(setId, limit = 20) {
     return new Promise((resolve, reject) => {
       const today = new Date().toISOString();
@@ -617,7 +639,6 @@ export const dbOps = {
     });
   },
 
-  // NEW: Reset SRS data
   resetSrsData(wordId = null) {
     return new Promise((resolve, reject) => {
       if (wordId) {
@@ -630,7 +651,138 @@ export const dbOps = {
         });
       }
     });
-  }
+  },
+
+  // SRS operations for Sentences
+  getDueSrsSentences(setId, limit = 20) {
+    return new Promise((resolve, reject) => {
+      const today = new Date().toISOString();
+      let query;
+      let params;
+      if (setId) {
+        query = `
+          SELECT s.* FROM sentences s
+          JOIN set_sentences ss ON s.id = ss.sentence_id
+          LEFT JOIN srs_data_sentences srs ON s.id = srs.sentence_id
+          WHERE ss.set_id = ? AND (srs.sentence_id IS NULL OR srs.due_date <= ?)
+          ORDER BY srs.due_date ASC, RANDOM()
+          LIMIT ?
+        `;
+        params = [setId, today, limit];
+      } else {
+        query = `
+          SELECT s.* FROM sentences s
+          LEFT JOIN srs_data_sentences srs ON s.id = srs.sentence_id
+          WHERE srs.sentence_id IS NULL OR srs.due_date <= ?
+          ORDER BY srs.due_date ASC, RANDOM()
+          LIMIT ?
+        `;
+        params = [today, limit];
+      }
+      db.all(query, params, (err, rows) => { if (err) reject(err); else resolve(rows); });
+    });
+  },
+  
+  updateSrsReviewSentence(sentenceId, quality) {
+    return new Promise((resolve, reject) => {
+      db.get('SELECT * FROM srs_data_sentences WHERE sentence_id = ?', [sentenceId], (err, row) => {
+        if (err) return reject(err);
+        let { ease_factor = 2.5, interval_days = 0, repetitions = 0, lapses = 0 } = row || {};
+        if (quality === 'correct') {
+          repetitions += 1;
+          if (repetitions === 1) { interval_days = 1; } 
+          else if (repetitions === 2) { interval_days = 6; } 
+          else { interval_days = Math.ceil(interval_days * ease_factor); }
+          ease_factor += 0.1;
+        } else {
+          lapses += 1;
+          repetitions = 0;
+          interval_days = 1;
+          ease_factor = Math.max(1.3, ease_factor - 0.2);
+        }
+        interval_days = Math.min(interval_days, 365);
+        ease_factor = Math.max(1.3, Math.min(ease_factor, 2.5));
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + interval_days);
+        const lastReviewed = new Date().toISOString();
+        if (row) {
+          db.run(`UPDATE srs_data_sentences SET due_date = ?, interval_days = ?, ease_factor = ?, repetitions = ?, lapses = ?, last_reviewed = ? WHERE sentence_id = ?`, [dueDate.toISOString(), interval_days, ease_factor, repetitions, lapses, lastReviewed, sentenceId], (err) => { if (err) reject(err); else resolve(); });
+        } else {
+          db.run(`INSERT INTO srs_data_sentences (sentence_id, due_date, interval_days, ease_factor, repetitions, lapses, last_reviewed) VALUES (?, ?, ?, ?, ?, ?, ?)`, [sentenceId, dueDate.toISOString(), interval_days, ease_factor, repetitions, lapses, lastReviewed], (err) => { if (err) reject(err); else resolve(); });
+        }
+      });
+    });
+  },
+  
+  getSrsStatsSentences(setId) {
+    return new Promise((resolve, reject) => {
+      const today = new Date().toISOString();
+      let whereClause = '';
+      const params = [today];
+      if (setId) {
+        whereClause = 'AND s.id IN (SELECT sentence_id FROM set_sentences WHERE set_id = ?)';
+        params.push(setId);
+      }
+      const query = `
+        SELECT
+          COUNT(CASE WHEN srs.sentence_id IS NULL THEN 1 END) as new_count,
+          COUNT(CASE WHEN srs.due_date <= ? THEN 1 END) as due_count
+        FROM sentences s
+        LEFT JOIN srs_data_sentences srs ON s.id = srs.sentence_id
+        WHERE 1=1 ${whereClause}
+      `;
+      db.get(query, params, (err, row) => {
+        if (err) return reject(err);
+        let totalQuery;
+        let totalParams = [];
+        if (setId) {
+          totalQuery = `SELECT COUNT(*) as total FROM set_sentences WHERE set_id = ?`;
+          totalParams = [setId];
+        } else {
+          totalQuery = `SELECT COUNT(*) as total FROM sentences`;
+        }
+        db.get(totalQuery, totalParams, (errTotal, rowTotal) => {
+          if (errTotal) return reject(errTotal);
+          resolve({ ...row, total_sentences: rowTotal.total });
+        });
+      });
+    });
+  },
+
+  resetSrsDataSentences(sentenceId = null) {
+    return new Promise((resolve, reject) => {
+      if (sentenceId) {
+        db.run('DELETE FROM srs_data_sentences WHERE sentence_id = ?', [sentenceId], (err) => {
+          if (err) reject(err); else resolve();
+        });
+      } else {
+        db.run('DELETE FROM srs_data_sentences', [], (err) => {
+          if (err) reject(err); else resolve();
+        });
+      }
+    });
+  },
+
+  // NEW: App Settings
+  getSettings() {
+    return new Promise((resolve, reject) => {
+      db.all('SELECT key, value FROM app_settings', (err, rows) => {
+        if (err) return reject(err);
+        const settings = rows.reduce((acc, row) => {
+          acc[row.key] = row.value;
+          return acc;
+        }, {});
+        resolve(settings);
+      });
+    });
+  },
+  updateSetting(key, value) {
+    return new Promise((resolve, reject) => {
+      db.run('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)', [key, value], (err) => {
+        if (err) reject(err); else resolve();
+      });
+    });
+  },
 };
 
 export default db;
