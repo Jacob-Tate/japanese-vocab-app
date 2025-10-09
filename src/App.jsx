@@ -37,7 +37,6 @@ export default function JapaneseVocabApp() {
   const [flashcardStartingSide, setFlashcardStartingSide] = useState('japanese');
   const [romajiMode, setRomajiMode] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-  const [srsOptions, setSrsOptions] = useState({ reviewOnly: false });
 
   useEffect(() => {
     loadData();
@@ -85,7 +84,7 @@ export default function JapaneseVocabApp() {
     audioQuiz: <AudioQuiz set={activeSet} vocabulary={vocabulary} repetitions={gameRepetitions} onExit={exitGame} />,
     sentenceScramble: <SentenceScramble set={activeSet} sentences={sentences} onExit={exitGame} />,
     typingBlitz: <TypingBlitz set={activeSet} vocabulary={vocabulary} onExit={exitGame} fallingLanguage={flashcardStartingSide} romajiMode={romajiMode} />,
-    srs: <SrsPractice set={activeSet} onExit={exitGame} options={srsOptions} />,
+    srs: <SrsPractice set={activeSet} onExit={exitGame} />,
     kanaPractice: <KanaPractice onExit={exitGame} />,
     countersQuiz: <CountersQuiz onExit={exitGame} />,
     crossword: <Crossword set={activeSet} vocabulary={vocabulary} onExit={exitGame} />,
@@ -146,7 +145,7 @@ export default function JapaneseVocabApp() {
 
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg transition-colors duration-200">
             {currentView === 'vocab' && <VocabularyManager vocabulary={vocabulary} sets={sets} onRefresh={loadData} />}
-            {currentView === 'sentences' && <SentenceManager sentences={sentences} onRefresh={loadData} />}
+            {currentView === 'sentences' && <SentenceManager sentences={sentences} sets={sets} onRefresh={loadData} />}
             {currentView === 'sets' && <SetManager vocabulary={vocabulary} sentences={sentences} sets={sets} onRefresh={loadData} />}
             {currentView === 'practice' && (
               <PracticeSelector
@@ -161,7 +160,7 @@ export default function JapaneseVocabApp() {
                 onStartMemory={(set) => { setActiveSet(set); setActiveGame('memory'); }}
                 onStartAudioQuiz={(set, reps) => { setActiveSet(set); setGameRepetitions(reps); setActiveGame('audioQuiz'); }}
                 onStartSentenceScramble={(set) => { setActiveSet(set); setActiveGame('sentenceScramble'); }}
-                onStartSrs={(set, options) => { setActiveSet(set); setSrsOptions(options); setActiveGame('srs'); }}
+                onStartSrs={(set) => { setActiveSet(set); setActiveGame('srs'); }}
                 onStartKanaPractice={() => setActiveGame('kanaPractice')}
                 onStartCountersQuiz={() => setActiveGame('countersQuiz')}
                 onStartCrossword={(set) => { setActiveSet(set); setActiveGame('crossword'); }}

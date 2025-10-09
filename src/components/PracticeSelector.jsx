@@ -24,7 +24,7 @@ function HighScores({ scores }) {
   );
 }
 
-export default function PracticeSelector({ sets, vocabulary, onStartGame, onStartFlashcard, onStartSpeedMatch, onStartQuiz, onStartTyping, onStartTypingBlitz, onStartMemory, onStartAudioQuiz, onStartSentenceScramble, onStartSrs, onStartKanaPractice, onStartCountersQuiz, onStartCrossword, onStartConjugationPractice, onStartParticlePractice }) {
+export default function PracticeSelector({ sets, vocabulary, onStartGame, onStartFlashcard, onStartSpeedMatch, onStartQuiz, onStartTyping, onStartTypingBlitz, onStartMemory, onStartAudioQuiz, onStartSentenceScramble, onStartSrs, onStartSrsSentences, onStartFlashcardSentences, onStartKanaPractice, onStartCountersQuiz, onStartCrossword, onStartConjugationPractice, onStartParticlePractice }) {
   const [selectedSets, setSelectedSets] = useState([]);
   const [highScores, setHighScores] = useState([]);
   const [mode, setMode] = useState(null);
@@ -95,13 +95,15 @@ export default function PracticeSelector({ sets, vocabulary, onStartGame, onStar
         case 'sentenceScramble': onStartSentenceScramble(gameSet); break;
         case 'typingBlitz': onStartTypingBlitz(gameSet, startingSide, romajiMode); break;
         case 'srs': onStartSrs(gameSet, { reviewOnly: reviewOnlyMode }); break;
+        case 'srsSentences': onStartSrsSentences(gameSet, { reviewOnly: reviewOnlyMode }); break;
+        case 'flashcardSentences': onStartFlashcardSentences(gameSet, startingSide); break;
         case 'crossword': onStartCrossword(gameSet); break;
       }
     }
   };
 
   const wordGameModes = [
-    { key: 'srs', name: 'Spaced Repetition', desc: 'Review words due today', icon: Brain, color: 'cyan', content: 'words' },
+    { key: 'srs', name: 'SRS (Words)', desc: 'Review words due today', icon: Brain, color: 'cyan', content: 'words' },
     { key: 'flashcard', name: 'Flashcard Drill', desc: 'Study cards in random order', icon: Book, color: 'blue', content: 'words' },
     { key: 'quiz', name: 'Multiple Choice', desc: 'Choose the right answer', icon: ListChecks, color: 'green', content: 'words' },
     { key: 'typing', name: 'Typing Challenge', desc: 'Type the translation', icon: Keyboard, color: 'purple', content: 'words' },
@@ -113,21 +115,59 @@ export default function PracticeSelector({ sets, vocabulary, onStartGame, onStar
     { key: 'crossword', name: 'Crossword Puzzle', desc: 'Fill in the grid', icon: Grid, color: 'gray', content: 'words' },
   ];
   const sentenceGameModes = [
+    { key: 'srsSentences', name: 'SRS (Sentences)', desc: 'Review sentences due today', icon: Brain, color: 'cyan', content: 'sentences' },
+    { key: 'flashcardSentences', name: 'Sentence Flashcards', desc: 'Study sentences at your own pace', icon: Book, color: 'blue', content: 'sentences' },
     { key: 'sentenceScramble', name: 'Sentence Scramble', desc: 'Unscramble the sentence', icon: MessageSquare, color: 'indigo', content: 'sentences' },
   ];
 
-  const filteredWordGameModes = wordGameModes.filter(m => {
-    if (m.key === 'srs') {
-      return selectedSets.length === 1;
-    }
-    return true;
-  });
-  
+  const filteredWordGameModes = wordGameModes.filter(m => selectedSets.length === 1 || m.key !== 'srs');
+  const filteredSentenceGameModes = sentenceGameModes.filter(m => selectedSets.length === 1 || m.key !== 'srsSentences');
+
   const combinedSetForCount = selectedSets.length > 1 ? {
     wordIds: [...new Set(selectedSets.flatMap(s => s.wordIds || []))],
     sentenceIds: [...new Set(selectedSets.flatMap(s => s.sentenceIds || []))],
   } : (selectedSets[0] || { wordIds: [], sentenceIds: [] });
   
+  const renderGameModeButton = (m) => {
+    const hasContent = (m.content === 'words' && (combinedSetForCount.wordIds || []).length > 0) || (m.content === 'sentences' && (combinedSetForCount.sentenceIds || []).length > 0);
+    const isSrs = m.key.startsWith('srs');
+    
+    if (isSrs) {
+      return (
+        <div key={m.key} className={`p-4 rounded-lg border-2 transition-all text-center relative ${mode === m.key ? `border-${m.color}-500 bg-${m.color}-50 dark:bg-${m.color}-900` : 'border-gray-200 dark:border-gray-600'} ${hasContent ? '' : 'opacity-50 bg-gray-50 dark:bg-gray-800'}`}>
+          {m.key === 'srs' && (
+            <button onClick={() => setIsSrsSettingsModalOpen(true)} className="absolute top-2 right-2 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400">
+              <Settings size={18} />
+            </button>
+          )}
+          <div onClick={() => hasContent && setMode(m.key)} className={hasContent ? 'cursor-pointer' : 'cursor-not-allowed'}>
+            <m.icon className={`w-8 h-8 mb-2 mx-auto text-${m.color}-500`} />
+            <div className="font-semibold dark:text-white">{m.name}</div>
+            <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{m.desc}</div>
+          </div>
+          {mode === m.key && hasContent && (
+            <div className="mt-3 pt-3 border-t dark:border-gray-600">
+              <label className="flex items-center justify-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={reviewOnlyMode} onChange={e => setReviewOnlyMode(e.target.checked)} className="w-4 h-4 text-cyan-600" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Reviews only mode</span>
+              </label>
+            </div>
+          )}
+          {!hasContent && <div className="text-xs text-red-500 dark:text-red-400 mt-1">(Needs {m.content})</div>}
+        </div>
+      );
+    }
+    
+    return (
+      <button key={m.key} onClick={() => hasContent && setMode(m.key)} disabled={!hasContent} className={`p-4 rounded-lg border-2 transition-all text-center ${mode === m.key ? `border-${m.color}-500 bg-${m.color}-50 dark:bg-${m.color}-900` : 'border-gray-200 dark:border-gray-600'} ${hasContent ? 'hover:border-blue-300 dark:hover:border-blue-500 cursor-pointer' : 'opacity-50 cursor-not-allowed bg-gray-50 dark:bg-gray-800'}`}>
+        <m.icon className={`w-8 h-8 mb-2 mx-auto text-${m.color}-500`} />
+        <div className="font-semibold dark:text-white">{m.name}</div>
+        <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{m.desc}</div>
+        {!hasContent && <div className="text-xs text-red-500 dark:text-red-400 mt-1">(Needs {m.content})</div>}
+      </button>
+    );
+  };
+
   return (
     <div className="p-4 sm:p-6">
       <SrsSettingsModal isOpen={isSrsSettingsModalOpen} onClose={() => setIsSrsSettingsModalOpen(false)} />
@@ -182,55 +222,12 @@ export default function PracticeSelector({ sets, vocabulary, onStartGame, onStar
 
           <h4 className="font-medium mb-3 text-gray-700 dark:text-gray-300">Vocabulary Practice</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredWordGameModes.map(m => {
-              const hasContent = (combinedSetForCount.wordIds || []).length > 0;
-              if (m.key === 'srs') {
-                return (
-                  <div key={m.key} className={`p-4 rounded-lg border-2 transition-all text-center relative ${mode === m.key ? `border-${m.color}-500 bg-${m.color}-50 dark:bg-${m.color}-900` : 'border-gray-200 dark:border-gray-600'} ${hasContent ? '' : 'opacity-50 bg-gray-50 dark:bg-gray-800'}`}>
-                    <button onClick={() => setIsSrsSettingsModalOpen(true)} className="absolute top-2 right-2 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400">
-                      <Settings size={18} />
-                    </button>
-                    <div onClick={() => hasContent && setMode(m.key)} className={hasContent ? 'cursor-pointer' : 'cursor-not-allowed'}>
-                      <m.icon className={`w-8 h-8 mb-2 mx-auto text-${m.color}-500`} />
-                      <div className="font-semibold dark:text-white">{m.name}</div>
-                      <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{m.desc}</div>
-                    </div>
-                    {mode === m.key && hasContent && (
-                      <div className="mt-3 pt-3 border-t dark:border-gray-600">
-                        <label className="flex items-center justify-center gap-2 cursor-pointer">
-                          <input type="checkbox" checked={reviewOnlyMode} onChange={e => setReviewOnlyMode(e.target.checked)} className="w-4 h-4 text-cyan-600" />
-                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Reviews only mode</span>
-                        </label>
-                      </div>
-                    )}
-                    {!hasContent && <div className="text-xs text-red-500 dark:text-red-400 mt-1">(Needs words)</div>}
-                  </div>
-                );
-              }
-              return (
-                <button key={m.key} onClick={() => hasContent && setMode(m.key)} disabled={!hasContent} className={`p-4 rounded-lg border-2 transition-all text-center ${mode === m.key ? `border-${m.color}-500 bg-${m.color}-50 dark:bg-${m.color}-900` : 'border-gray-200 dark:border-gray-600'} ${hasContent ? 'hover:border-blue-300 dark:hover:border-blue-500 cursor-pointer' : 'opacity-50 cursor-not-allowed bg-gray-50 dark:bg-gray-800'}`}>
-                  <m.icon className={`w-8 h-8 mb-2 mx-auto text-${m.color}-500`} />
-                  <div className="font-semibold dark:text-white">{m.name}</div>
-                  <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{m.desc}</div>
-                  {!hasContent && <div className="text-xs text-red-500 dark:text-red-400 mt-1">(Needs words)</div>}
-                </button>
-              );
-            })}
+            {filteredWordGameModes.map(renderGameModeButton)}
           </div>
 
           <h4 className="font-medium mt-6 mb-3 text-gray-700 dark:text-gray-300">Sentence Practice</h4>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {sentenceGameModes.map(m => {
-              const hasContent = (combinedSetForCount.sentenceIds || []).length > 0;
-              return (
-                <button key={m.key} onClick={() => hasContent && setMode(m.key)} disabled={!hasContent} className={`p-4 rounded-lg border-2 transition-all text-center ${mode === m.key ? `border-${m.color}-500 bg-${m.color}-50 dark:bg-${m.color}-900` : 'border-gray-200 dark:border-gray-600'} ${hasContent ? 'hover:border-blue-300 dark:hover:border-blue-500 cursor-pointer' : 'opacity-50 cursor-not-allowed bg-gray-50 dark:bg-gray-800'}`}>
-                  <m.icon className={`w-8 h-8 mb-2 mx-auto text-${m.color}-500`} />
-                  <div className="font-semibold dark:text-white">{m.name}</div>
-                  <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{m.desc}</div>
-                  {!hasContent && <div className="text-xs text-red-500 dark:text-red-400 mt-1">(Needs sentences)</div>}
-                </button>
-              );
-            })}
+            {filteredSentenceGameModes.map(renderGameModeButton)}
           </div>
         </div>
       )}
@@ -281,7 +278,7 @@ export default function PracticeSelector({ sets, vocabulary, onStartGame, onStar
             </div>
           )}
 
-          {mode === 'flashcard' && (
+          {(mode === 'flashcard' || mode === 'flashcardSentences') && (
             <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
               <h3 className="text-base sm:text-lg font-semibold mb-4 dark:text-white">Flashcard Settings</h3>
               <div>
@@ -330,10 +327,10 @@ export default function PracticeSelector({ sets, vocabulary, onStartGame, onStar
             </div>
           )}
                     
-          {(mode !== 'srs') ? (
-            <button onClick={handleStart} className="w-full bg-green-500 text-white py-3 sm:py-4 rounded-lg hover:bg-green-600 text-base sm:text-lg font-semibold flex items-center justify-center gap-2"><Play size={24} /> Start Practice</button>
-          ) : (
+          {mode.startsWith('srs') ? (
             <button onClick={handleStart} className="w-full bg-cyan-500 text-white py-3 sm:py-4 rounded-lg hover:bg-cyan-600 text-base sm:text-lg font-semibold flex items-center justify-center gap-2"><Brain size={24} /> Start SRS Review</button>
+          ) : (
+            <button onClick={handleStart} className="w-full bg-green-500 text-white py-3 sm:py-4 rounded-lg hover:bg-green-600 text-base sm:text-lg font-semibold flex items-center justify-center gap-2"><Play size={24} /> Start Practice</button>
           )}
         </>
       )}
