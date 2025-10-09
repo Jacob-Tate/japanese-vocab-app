@@ -4,7 +4,7 @@ import { Brain, RotateCcw, Check, X, Volume2 } from 'lucide-react';
 import { api } from '../api';
 import { playAudio } from '../utils/audio';
 
-export default function SrsPractice({ set, onExit }) {
+export default function SrsPractice({ set, onExit, options }) {
   const [dueWords, setDueWords] = useState([]);
   const [stats, setStats] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -15,13 +15,13 @@ export default function SrsPractice({ set, onExit }) {
 
   useEffect(() => {
     loadSrsData();
-  }, [set.id]);
+  }, [set.id, options.reviewOnly]);
 
   const loadSrsData = async () => {
     setIsLoading(true);
     try {
       const [due, srsStats] = await Promise.all([
-        api.getDueSrsWords(set.id),
+        api.getDueSrsWords(set.id, options),
         api.getSrsStats(set.id)
       ]);
       // originalAttempt tracks the status within this session: 'pending', 'incorrect'

@@ -152,8 +152,9 @@ export const api = {
   },
 
   // SRS API
-  async getDueSrsWords(setId) {
-    const response = await fetch(`${API_URL}/srs/due?setId=${setId || 'all'}`);
+  async getDueSrsWords(setId, options = {}) {
+    const { reviewOnly = false } = options;
+    const response = await fetch(`${API_URL}/srs/due?setId=${setId || 'all'}&reviewOnly=${reviewOnly}`);
     return response.json();
   },
 
@@ -176,6 +177,21 @@ export const api = {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ wordId }) // wordId will be null for global reset
+    });
+    return response.json();
+  },
+
+  // Settings API
+  async getSettings() {
+    const response = await fetch(`${API_URL}/settings`);
+    return response.json();
+  },
+
+  async updateSetting(key, value) {
+    const response = await fetch(`${API_URL}/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, value })
     });
     return response.json();
   },

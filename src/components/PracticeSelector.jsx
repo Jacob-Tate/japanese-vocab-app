@@ -1,7 +1,8 @@
 // src/components/PracticeSelector.jsx
 import React, { useState, useEffect } from 'react';
-import { Book, Play, Layers, Zap, ListChecks, Keyboard, Grid3x3, Volume2, Trophy, MessageSquare, Diameter, Brain, Type, Sigma, Grid, FilePenLine, Milestone } from 'lucide-react';
+import { Book, Play, Layers, Zap, ListChecks, Keyboard, Grid3x3, Volume2, Trophy, MessageSquare, Diameter, Brain, Type, Sigma, Grid, FilePenLine, Milestone, Settings } from 'lucide-react';
 import { api } from '../api';
+import SrsSettingsModal from './SrsSettingsModal';
 
 function HighScores({ scores }) {
   if (!scores || scores.length === 0) {
@@ -30,6 +31,8 @@ export default function PracticeSelector({ sets, vocabulary, onStartGame, onStar
   const [repetitions, setRepetitions] = useState(1);
   const [startingSide, setStartingSide] = useState('japanese');
   const [romajiMode, setRomajiMode] = useState(false);
+  const [reviewOnlyMode, setReviewOnlyMode] = useState(false);
+  const [isSrsSettingsModalOpen, setIsSrsSettingsModalOpen] = useState(false);
 
   const allVocabSet = {
     id: 'all',
@@ -91,7 +94,7 @@ export default function PracticeSelector({ sets, vocabulary, onStartGame, onStar
         case 'audioQuiz': onStartAudioQuiz(gameSet, repetitions); break;
         case 'sentenceScramble': onStartSentenceScramble(gameSet); break;
         case 'typingBlitz': onStartTypingBlitz(gameSet, startingSide, romajiMode); break;
-        case 'srs': onStartSrs(gameSet); break;
+        case 'srs': onStartSrs(gameSet, { reviewOnly: reviewOnlyMode }); break;
         case 'crossword': onStartCrossword(gameSet); break;
       }
     }
@@ -127,6 +130,7 @@ export default function PracticeSelector({ sets, vocabulary, onStartGame, onStar
   
   return (
     <div className="p-4 sm:p-6">
+      <SrsSettingsModal isOpen={isSrsSettingsModalOpen} onClose={() => setIsSrsSettingsModalOpen(false)} />
       <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 dark:text-white">Practice Mode</h2>
       
       <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
@@ -180,6 +184,29 @@ export default function PracticeSelector({ sets, vocabulary, onStartGame, onStar
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredWordGameModes.map(m => {
               const hasContent = (combinedSetForCount.wordIds || []).length > 0;
+              if (m.key === 'srs') {
+                return (
+                  <div key={m.key} className={`p-4 rounded-lg border-2 transition-all text-center relative ${mode === m.key ? `border-${m.color}-500 bg-${m.color}-50 dark:bg-${m.color}-900` : 'border-gray-200 dark:border-gray-600'} ${hasContent ? '' : 'opacity-50 bg-gray-50 dark:bg-gray-800'}`}>
+                    <button onClick={() => setIsSrsSettingsModalOpen(true)} className="absolute top-2 right-2 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400">
+                      <Settings size={18} />
+                    </button>
+                    <div onClick={() => hasContent && setMode(m.key)} className={hasContent ? 'cursor-pointer' : 'cursor-not-allowed'}>
+                      <m.icon className={`w-8 h-8 mb-2 mx-auto text-${m.color}-500`} />
+                      <div className="font-semibold dark:text-white">{m.name}</div>
+                      <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">{m.desc}</div>
+                    </div>
+                    {mode === m.key && hasContent && (
+                      <div className="mt-3 pt-3 border-t dark:border-gray-600">
+                        <label className="flex items-center justify-center gap-2 cursor-pointer">
+                          <input type="checkbox" checked={reviewOnlyMode} onChange={e => setReviewOnlyMode(e.target.checked)} className="w-4 h-4 text-cyan-600" />
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Reviews only mode</span>
+                        </label>
+                      </div>
+                    )}
+                    {!hasContent && <div className="text-xs text-red-500 dark:text-red-400 mt-1">(Needs words)</div>}
+                  </div>
+                );
+              }
               return (
                 <button key={m.key} onClick={() => hasContent && setMode(m.key)} disabled={!hasContent} className={`p-4 rounded-lg border-2 transition-all text-center ${mode === m.key ? `border-${m.color}-500 bg-${m.color}-50 dark:bg-${m.color}-900` : 'border-gray-200 dark:border-gray-600'} ${hasContent ? 'hover:border-blue-300 dark:hover:border-blue-500 cursor-pointer' : 'opacity-50 cursor-not-allowed bg-gray-50 dark:bg-gray-800'}`}>
                   <m.icon className={`w-8 h-8 mb-2 mx-auto text-${m.color}-500`} />

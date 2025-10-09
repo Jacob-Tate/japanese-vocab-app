@@ -289,8 +289,23 @@ app.get('/api/game-statistics', async (req, res) => {
 app.get('/api/srs/due', async (req, res) => {
   try {
     const setId = req.query.setId && req.query.setId !== 'all' ? req.query.setId : null;
-    const limit = req.query.limit ? parseInt(req.query.limit, 10) : 20;
-    const words = await dbOps.getDueSrsWords(setId, limit);
+    const reviewOnly = req.query.reviewOnly === 'true';
+
+    // 1. Get settings
+    const settings = await dbOps.getSettings();
+    const newCardsPerDay = parseInt(settings.newCardsPerDay || '20', 10);
+    const reviewsPerDay = parseInt(settings.reviewsPerDay || '100', 10);
+    
+    // 2. Count today's progress
+    const newLearned = await dbOps.countNewCardsLearnedToday(setId);
+    const reviewsDone = await dbOps.countReviewsDoneToday(setId);
+
+    // 3. Calculate limits for this session
+    const newCardLimit = reviewOnly ? 0 : Math.max(0, newCardsPerDay - newLearned);
+    const reviewLimit = Math.max(0, reviewsPerDay - reviewsDone);
+
+    // 4. Fetch the queue
+    const words = await dbOps.getSrsQueue(setId, reviewLimit, newCardLimit);
     res.json(words);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -314,7 +329,8 @@ app.get('/api/srs/stats', async (req, res) => {
   try {
     const setId = req.query.setId && req.query.setId !== 'all' ? req.query.setId : null;
     const stats = await dbOps.getSrsStats(setId);
-    res.json(stats);
+    const settings = await dbOps.getSettings();
+    res.json({ ...stats, settings });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -329,6 +345,29 @@ app.delete('/api/srs', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+// Settings Routes
+app.get('/api/settings', async (req, res) => {
+    try {
+        const settings = await dbOps.getSettings();
+        res.json(settings);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.put('/api/settings', async (req, res) => {
+    try {
+        const { key, value } = req.body;
+        if (!key || value === undefined) {
+            return res.status(400).json({ error: 'Key and value are required' });
+        }
+        await dbOps.updateSetting(key, value);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // Dictionary search proxy

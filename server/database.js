@@ -87,6 +87,31 @@ db.get('PRAGMA user_version', (err, row) => {
       });
     });
   }
+
+  if (currentVersion < 3) {
+    console.log('Running database migration to version 3 (add settings table)...');
+    db.serialize(() => {
+      db.run('BEGIN TRANSACTION');
+      db.run(`
+        CREATE TABLE IF NOT EXISTS settings (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        )
+      `);
+      db.run(`INSERT INTO settings (key, value) VALUES ('newCardsPerDay', '20') ON CONFLICT(key) DO NOTHING`);
+      db.run(`INSERT INTO settings (key, value) VALUES ('reviewsPerDay', '100') ON CONFLICT(key) DO NOTHING`);
+      db.run('PRAGMA user_version = 3');
+      db.run('COMMIT', (err) => {
+        if (err) {
+          console.error('Migration commit failed:', err);
+          db.run('ROLLBACK');
+        } else {
+          console.log('Database migration to version 3 complete.');
+          currentVersion = 3;
+        }
+      });
+    });
+  }
 });
 
 
@@ -181,6 +206,14 @@ db.serialize(() => {
       lapses INTEGER DEFAULT 0,
       last_reviewed DATETIME,
       FOREIGN KEY (word_id) REFERENCES vocabulary(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Settings table
+  db.run(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
     )
   `);
 });
@@ -477,32 +510,47 @@ export const dbOps = {
   },
 
   // SRS operations
-  getDueSrsWords(setId, limit = 20) {
+  getSrsQueue(setId, reviewLimit, newCardLimit) {
     return new Promise((resolve, reject) => {
       const today = new Date().toISOString();
-      let query;
-      let params;
-      if (setId) {
-        query = `
-          SELECT v.* FROM vocabulary v
-          JOIN set_words sw ON v.id = sw.word_id
-          LEFT JOIN srs_data srs ON v.id = srs.word_id
-          WHERE sw.set_id = ? AND (srs.word_id IS NULL OR srs.due_date <= ?)
-          ORDER BY srs.due_date ASC, RANDOM()
-          LIMIT ?
-        `;
-        params = [setId, today, limit];
-      } else {
-        query = `
-          SELECT v.* FROM vocabulary v
-          LEFT JOIN srs_data srs ON v.id = srs.word_id
-          WHERE srs.word_id IS NULL OR srs.due_date <= ?
-          ORDER BY srs.due_date ASC, RANDOM()
-          LIMIT ?
-        `;
-        params = [today, limit];
-      }
-      db.all(query, params, (err, rows) => { if (err) reject(err); else resolve(rows); });
+  
+      const reviewQuery = `
+        SELECT v.*
+        FROM vocabulary v
+        JOIN srs_data srs ON v.id = srs.word_id
+        ${setId ? 'JOIN set_words sw ON v.id = sw.word_id' : ''}
+        WHERE srs.due_date <= ?
+        ${setId ? 'AND sw.set_id = ?' : ''}
+        ORDER BY srs.due_date ASC
+        LIMIT ?
+      `;
+      const reviewParams = setId ? [today, setId, reviewLimit] : [today, reviewLimit];
+  
+      const newCardQuery = `
+        SELECT v.*
+        FROM vocabulary v
+        LEFT JOIN srs_data srs ON v.id = srs.word_id
+        ${setId ? 'JOIN set_words sw ON v.id = sw.word_id' : ''}
+        WHERE srs.word_id IS NULL
+        ${setId ? 'AND sw.set_id = ?' : ''}
+        ORDER BY RANDOM()
+        LIMIT ?
+      `;
+      const newCardParams = setId ? [setId, newCardLimit] : [newCardLimit];
+  
+      Promise.all([
+        reviewLimit > 0 ? new Promise((res, rej) => db.all(reviewQuery, reviewParams, (err, rows) => err ? rej(err) : res(rows || []))) : Promise.resolve([]),
+        newCardLimit > 0 ? new Promise((res, rej) => db.all(newCardQuery, newCardParams, (err, rows) => err ? rej(err) : res(rows || []))) : Promise.resolve([])
+      ]).then(([reviews, newCards]) => {
+        let combined = [...reviews, ...newCards];
+        
+        for (let i = combined.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [combined[i], combined[j]] = [combined[j], combined[i]];
+        }
+        
+        resolve(combined);
+      }).catch(reject);
     });
   },
   
@@ -576,7 +624,6 @@ export const dbOps = {
     });
   },
 
-  // NEW: Reset SRS data
   resetSrsData(wordId = null) {
     return new Promise((resolve, reject) => {
       if (wordId) {
@@ -589,6 +636,66 @@ export const dbOps = {
         });
       }
     });
+  },
+
+  // Setting operations
+  getSettings() {
+    return new Promise((resolve, reject) => {
+      db.all('SELECT key, value FROM settings', (err, rows) => {
+        if (err) return reject(err);
+        const settings = rows.reduce((acc, row) => {
+          acc[row.key] = row.value;
+          return acc;
+        }, {});
+        resolve(settings);
+      });
+    });
+  },
+  
+  updateSetting(key, value) {
+    return new Promise((resolve, reject) => {
+      db.run('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value', [key, value], (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+  },
+  
+  // SRS count operations
+  countNewCardsLearnedToday(setId) {
+      return new Promise((resolve, reject) => {
+          const query = `
+              SELECT COUNT(DISTINCT srs.word_id) as count
+              FROM srs_data srs
+              ${setId ? 'JOIN set_words sw ON srs.word_id = sw.word_id' : ''}
+              WHERE srs.repetitions = 1
+              AND date(srs.last_reviewed) = date('now', 'localtime')
+              ${setId ? 'AND sw.set_id = ?' : ''}
+          `;
+          const params = setId ? [setId] : [];
+          db.get(query, params, (err, row) => {
+              if (err) reject(err);
+              else resolve(row ? row.count : 0);
+          });
+      });
+  },
+
+  countReviewsDoneToday(setId) {
+      return new Promise((resolve, reject) => {
+          const query = `
+              SELECT COUNT(DISTINCT srs.word_id) as count
+              FROM srs_data srs
+              ${setId ? 'JOIN set_words sw ON srs.word_id = sw.word_id' : ''}
+              WHERE srs.repetitions > 1
+              AND date(srs.last_reviewed) = date('now', 'localtime')
+              ${setId ? 'AND sw.set_id = ?' : ''}
+          `;
+          const params = setId ? [setId] : [];
+          db.get(query, params, (err, row) => {
+              if (err) reject(err);
+              else resolve(row ? row.count : 0);
+          });
+      });
   }
 };
 
