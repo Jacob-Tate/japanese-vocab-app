@@ -43,7 +43,11 @@ export default function CountersQuiz({ onExit }) {
     let quizQuestions = [];
     for (let i = 0; i < questionCount; i++) {
       const counter = practiceCounters[Math.floor(Math.random() * practiceCounters.length)];
-      const number = Math.floor(Math.random() * 10) + 1;
+      
+      const availableNumbers = Object.keys(counter.readings);
+      if (availableNumbers.length === 0) continue;
+      
+      const number = availableNumbers[Math.floor(Math.random() * availableNumbers.length)];
       const item = counter.items[Math.floor(Math.random() * counter.items.length)];
       const answer = counter.readings[number];
       quizQuestions.push({ number, item, counter, answer });
@@ -53,36 +57,38 @@ export default function CountersQuiz({ onExit }) {
     
     if (quizType === 'multipleChoice') {
       quizQuestions = quizQuestions.map(q => {
-        const correctAnswerHiragana = wanakana.toHiragana(q.answer);
-        const otherCounters = practiceCounters.filter(c => c.reading !== q.counter.reading);
-        const distractorsHiragana = [];
+        const correctAnswerHiragana = q.answer;
         
+        const otherCounters = practiceCounters.filter(c => 
+            c.reading !== q.counter.reading && 
+            c.readings[q.number] !== undefined
+        );
+        
+        let distractorsHiragana = [];
         const shuffledDistractors = otherCounters.sort(() => Math.random() - 0.5);
 
         for (const distractorCounter of shuffledDistractors) {
             if (distractorsHiragana.length >= 3) break;
-            const distractorAnswerRomaji = distractorCounter.readings[q.number];
-            const distractorAnswerHiragana = wanakana.toHiragana(distractorAnswerRomaji);
+            const distractorAnswerHiragana = distractorCounter.readings[q.number];
             if (!distractorsHiragana.includes(distractorAnswerHiragana) && distractorAnswerHiragana !== correctAnswerHiragana) {
                 distractorsHiragana.push(distractorAnswerHiragana);
             }
         }
         
         let failsafe = 0;
-        while (distractorsHiragana.length < 3 && practiceCounters.length > 1 && failsafe < 20) {
-            const randomCounter = practiceCounters[Math.floor(Math.random() * practiceCounters.length)];
-            if(randomCounter.reading === q.counter.reading) continue;
-            
-            const randomDistractorRomaji = randomCounter.readings[q.number];
-            const randomDistractorHiragana = wanakana.toHiragana(randomDistractorRomaji);
-            if (!distractorsHiragana.includes(randomDistractorHiragana) && randomDistractorHiragana !== correctAnswerHiragana) {
-                distractorsHiragana.push(randomDistractorHiragana);
+        const allPossibleReadings = practiceCounters.flatMap(c => Object.values(c.readings));
+        const uniqueReadings = [...new Set(allPossibleReadings)];
+
+        while (distractorsHiragana.length < 3 && failsafe < 50) {
+            const randomReading = uniqueReadings[Math.floor(Math.random() * uniqueReadings.length)];
+            if (!distractorsHiragana.includes(randomReading) && randomReading !== correctAnswerHiragana) {
+                distractorsHiragana.push(randomReading);
             }
             failsafe++;
         }
         
         const options = [correctAnswerHiragana, ...distractorsHiragana].sort(() => Math.random() - 0.5);
-        return { ...q, romajiAnswer: q.answer, answer: correctAnswerHiragana, options };
+        return { ...q, answer: correctAnswerHiragana, options };
       });
     }
 
