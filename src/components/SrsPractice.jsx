@@ -1,7 +1,8 @@
 // src/components/SrsPractice.jsx
 import React, { useState, useEffect } from 'react';
-import { Brain, RotateCcw, Check, X } from 'lucide-react';
+import { Brain, RotateCcw, Check, X, Volume2 } from 'lucide-react';
 import { api } from '../api';
+import { playAudio } from '../utils/audio';
 
 export default function SrsPractice({ set, onExit }) {
   const [dueWords, setDueWords] = useState([]);
@@ -167,7 +168,7 @@ export default function SrsPractice({ set, onExit }) {
       <div className="flex flex-col items-center">
         <div 
           onClick={() => setShowAnswer(true)}
-          className="w-full max-w-2xl h-64 sm:h-80 bg-white dark:bg-gray-700 rounded-2xl shadow-2xl flex items-center justify-center p-6 sm:p-8 mb-6 transition-all cursor-pointer"
+          className="relative w-full max-w-2xl h-64 sm:h-80 bg-white dark:bg-gray-700 rounded-2xl shadow-2xl flex items-center justify-center p-6 sm:p-8 mb-6 transition-all cursor-pointer"
         >
           <div className="text-center">
             <p className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 break-words dark:text-white">
@@ -180,6 +181,16 @@ export default function SrsPractice({ set, onExit }) {
               <p className="text-gray-400 dark:text-gray-500 text-sm">Click to show answer</p>
             )}
           </div>
+          <button
+            onClick={(e) => {
+                e.stopPropagation();
+                playAudio(currentCard);
+            }}
+            className="absolute top-4 right-4 bg-blue-500 text-white rounded-full p-3 hover:bg-blue-600 transition-transform hover:scale-110"
+            title="Play audio"
+          >
+            <Volume2 size={24} />
+          </button>
         </div>
 
         {showAnswer ? (

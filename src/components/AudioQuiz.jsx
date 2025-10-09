@@ -2,17 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { RotateCcw, Volume2, CheckCircle, XCircle, Trophy } from 'lucide-react';
 import { api } from '../api';
-
-// Simple Text-to-Speech utility
-const speak = (text, lang = 'ja-JP') => {
-  if ('speechSynthesis' in window) {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang;
-    window.speechSynthesis.speak(utterance);
-  } else {
-    alert('Sorry, your browser does not support text-to-speech.');
-  }
-};
+import { playAudio } from '../utils/audio';
 
 export default function AudioQuiz({ set, vocabulary, onExit, repetitions = 1 }) {
   const [questions, setQuestions] = useState([]);
@@ -31,6 +21,13 @@ export default function AudioQuiz({ set, vocabulary, onExit, repetitions = 1 }) 
       loadHighScore();
     }
   }, []);
+
+  useEffect(() => {
+    // Automatically play audio for the new question
+    if (questions.length > 0 && !isComplete) {
+        playAudio(questions[currentIndex].questionWord);
+    }
+  }, [currentIndex, questions, isComplete]);
 
   const loadHighScore = async () => {
     try {
@@ -207,7 +204,7 @@ export default function AudioQuiz({ set, vocabulary, onExit, repetitions = 1 }) 
       <div className="bg-white dark:bg-gray-700 rounded-2xl shadow-lg p-6 sm:p-8 mb-6 text-center">
         <p className="text-gray-600 dark:text-gray-400 mb-4">Listen to the word and select the correct translation:</p>
         <button 
-          onClick={() => speak(currentQuestion.questionWord.japanese)}
+          onClick={() => playAudio(currentQuestion.questionWord)}
           className="bg-blue-500 text-white rounded-full p-6 hover:bg-blue-600 transition-transform hover:scale-110 mb-8 mx-auto flex items-center justify-center"
         >
           <Volume2 size={48} />

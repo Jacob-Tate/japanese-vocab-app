@@ -142,3 +142,5 @@ vite.config.ts.timestamp-*
 
 
 server/vocabulary.db
+server/vocabulary.*
+server/audio

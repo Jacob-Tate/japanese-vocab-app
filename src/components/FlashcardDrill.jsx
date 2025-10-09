@@ -1,17 +1,7 @@
 // src/components/FlashcardDrill.jsx
 import React, { useState, useEffect } from 'react';
 import { RotateCcw, Volume2 } from 'lucide-react';
-
-// Simple Text-to-Speech utility
-const speak = (text, lang = 'ja-JP') => {
-  if ('speechSynthesis' in window) {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang;
-    window.speechSynthesis.speak(utterance);
-  } else {
-    alert('Sorry, your browser does not support text-to-speech.');
-  }
-};
+import { playAudio } from '../utils/audio';
 
 export default function FlashcardDrill({ set, vocabulary, onExit, startingSide = 'japanese' }) {
   const [cards, setCards] = useState([]);
@@ -103,18 +93,16 @@ export default function FlashcardDrill({ set, vocabulary, onExit, startingSide =
               </p>
             </div>
           </div>
-          {((startingSide === 'japanese' && !showAnswer) || (startingSide === 'english' && showAnswer)) && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                speak(currentCard.japanese);
-              }}
-              className="absolute top-4 right-4 bg-blue-500 text-white rounded-full p-3 hover:bg-blue-600 transition-transform hover:scale-110"
-              title="Pronounce Japanese word"
-            >
-              <Volume2 size={24} />
-            </button>
-          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              playAudio(currentCard);
+            }}
+            className="absolute top-4 right-4 bg-blue-500 text-white rounded-full p-3 hover:bg-blue-600 transition-transform hover:scale-110"
+            title="Play audio"
+          >
+            <Volume2 size={24} />
+          </button>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full sm:w-auto">

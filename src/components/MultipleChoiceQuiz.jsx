@@ -1,7 +1,8 @@
 // src/components/MultipleChoiceQuiz.jsx
 import React, { useState, useEffect } from 'react';
-import { RotateCcw, CheckCircle, XCircle, Trophy } from 'lucide-react';
+import { RotateCcw, CheckCircle, XCircle, Trophy, Volume2 } from 'lucide-react';
 import { api } from '../api';
+import { playAudio } from '../utils/audio';
 
 export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSide = 'japanese', repetitions = 1 }) {
   const [questions, setQuestions] = useState([]);
@@ -20,6 +21,14 @@ export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSi
       loadHighScore();
     }
   }, []);
+
+  useEffect(() => {
+    // Automatically play audio for the new question if it's in Japanese
+    if (questions.length > 0 && startingSide === 'japanese' && !isComplete) {
+        const currentWord = questions[currentIndex].questionWord;
+        playAudio(currentWord);
+    }
+  }, [currentIndex, questions, startingSide, isComplete]);
 
   const loadHighScore = async () => {
     try {
@@ -88,6 +97,7 @@ export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSi
           .sort(() => Math.random() - 0.5);
                         
         return {
+          questionWord: correctWord,
           question: startingSide === 'japanese' ? correctWord.japanese : correctWord.english,
           options: options.map(opt => startingSide === 'japanese' ? opt.english : opt.japanese),
           correctAnswer: startingSide === 'japanese' ? correctWord.english : correctWord.japanese,
@@ -197,7 +207,18 @@ export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSi
                   
       <div className="bg-white dark:bg-gray-700 rounded-2xl shadow-lg p-6 sm:p-8 mb-6">
         <p className="text-gray-600 dark:text-gray-400 mb-2">What is the translation of:</p>
-        <h3 className="text-4xl sm:text-5xl font-bold mb-8 text-center dark:text-white">{currentQuestion.question}</h3>
+        <div className="flex items-center justify-center gap-4 mb-8">
+            <h3 className="text-4xl sm:text-5xl font-bold text-center dark:text-white">{currentQuestion.question}</h3>
+            {startingSide === 'japanese' && (
+                <button
+                    onClick={() => playAudio(currentQuestion.questionWord)}
+                    className="p-3 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-transform hover:scale-110"
+                    title="Play audio"
+                >
+                    <Volume2 size={24} />
+                </button>
+            )}
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {currentQuestion.options.map((option, index) => {

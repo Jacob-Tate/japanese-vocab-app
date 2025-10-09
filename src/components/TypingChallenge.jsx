@@ -1,7 +1,8 @@
 // src/components/TypingChallenge.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { RotateCcw, CheckCircle, XCircle, AlertCircle, Trophy } from 'lucide-react';
+import { RotateCcw, CheckCircle, XCircle, AlertCircle, Trophy, Volume2 } from 'lucide-react';
 import { api } from '../api';
+import { playAudio } from '../utils/audio';
 
 export default function TypingChallenge({ set, vocabulary, onExit, startingSide = 'japanese', repetitions = 1, romajiMode = false }) {
   const [words, setWords] = useState([]);
@@ -23,6 +24,12 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
       loadHighScore();
     }
   }, []);
+
+  useEffect(() => {
+    if (words.length > 0 && startingSide === 'japanese' && !isComplete) {
+        playAudio(words[currentIndex]);
+    }
+  }, [currentIndex, words, startingSide, isComplete]);
 
   const loadHighScore = async () => {
     try {
@@ -286,7 +293,18 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
           Type the {startingSide === 'japanese' ? 'English' : 'Japanese'} translation:
           {romajiMode && startingSide === 'english' && <span className="ml-2 px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded text-xs font-semibold">ROMAJI MODE</span>}
         </p>
-        <h3 className="text-4xl sm:text-5xl font-bold mb-8 text-center dark:text-white">{startingSide === 'japanese' ? currentWord.japanese : currentWord.english}</h3>
+        <div className="flex items-center justify-center gap-4 mb-8">
+            <h3 className="text-4xl sm:text-5xl font-bold text-center dark:text-white">{startingSide === 'japanese' ? currentWord.japanese : currentWord.english}</h3>
+            {startingSide === 'japanese' && (
+                <button
+                    onClick={() => playAudio(currentWord)}
+                    className="p-3 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-transform hover:scale-110"
+                    title="Play audio"
+                >
+                    <Volume2 size={24} />
+                </button>
+            )}
+        </div>
 
         <form onSubmit={handleSubmit}>
           <input ref={inputRef} type="text" value={userInput} onChange={(e) => setUserInput(e.target.value)} disabled={!!feedback} className="w-full px-4 py-3 text-xl border-2 border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2 text-center dark:bg-gray-600 dark:text-white dark:placeholder-gray-400" placeholder={romajiMode && startingSide === 'english' ? "Type in romaji..." : "Type your answer..."} autoComplete="off"/>

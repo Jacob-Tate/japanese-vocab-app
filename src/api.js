@@ -39,6 +39,28 @@ export const api = {
     return response.json();
   },
 
+  async uploadAudio(wordId, audioFile) {
+    const formData = new FormData();
+    formData.append('audio', audioFile);
+    
+    const response = await fetch(`${API_URL}/vocabulary/${wordId}/audio`, {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to upload audio.');
+    }
+    return data;
+  },
+  
+  async deleteAudio(wordId) {
+    const response = await fetch(`${API_URL}/vocabulary/${wordId}/audio`, {
+      method: 'DELETE',
+    });
+    return response.json();
+  },
+
   async addSentence(sentence) {
     const response = await fetch(`${API_URL}/sentences`, {
       method: 'POST',

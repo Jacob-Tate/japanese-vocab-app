@@ -1,14 +1,51 @@
 // server/index.js
 import express from 'express';
 import cors from 'cors';
+import multer from 'multer';
+import path, { dirname, join } from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { dbOps } from './database.js';
 
 const app = express();
 const PORT = 3001;
 
+// Setup for file paths
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Serve uploaded audio files
+const audioDir = join(__dirname, 'audio');
+if (!fs.existsSync(audioDir)) {
+  fs.mkdirSync(audioDir);
+}
+app.use('/audio', express.static(audioDir));
+
+// Multer setup for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, audioDir)
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
+    cb(null, 'word-' + req.params.id + '-' + uniqueSuffix + path.extname(file.originalname))
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'audio/mpeg') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only .mp3 files are allowed!'), false);
+    }
+  }
+});
 
 // Vocabulary routes
 app.post('/api/vocabulary', async (req, res) => {
@@ -56,6 +93,46 @@ app.put('/api/vocabulary/:id/sets', async (req, res) => {
   try {
     const { setIds } = req.body;
     await dbOps.updateWordSets(req.params.id, setIds);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// NEW: Audio routes
+app.post('/api/vocabulary/:id/audio', upload.single('audio'), async (req, res) => {
+  try {
+    const wordId = req.params.id;
+    const filename = req.file.filename;
+
+    const existingWord = await dbOps.getWordById(wordId);
+    if (existingWord && existingWord.audio_filename) {
+      const oldPath = join(audioDir, existingWord.audio_filename);
+      fs.unlink(oldPath, (err) => {
+        if (err) console.error("Error deleting old audio file:", err);
+      });
+    }
+    
+    await dbOps.updateWordAudio(wordId, filename);
+    res.json({ success: true, filename });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/vocabulary/:id/audio', async (req, res) => {
+  try {
+    const wordId = req.params.id;
+    const word = await dbOps.getWordById(wordId);
+
+    if (word && word.audio_filename) {
+      const filePath = join(audioDir, word.audio_filename);
+      fs.unlink(filePath, (err) => {
+        if (err) console.error("Error deleting audio file:", err);
+      });
+
+      await dbOps.updateWordAudio(wordId, null);
+    }
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });

@@ -19,18 +19,14 @@ db.get('PRAGMA user_version', (err, row) => {
     return;
   }
 
-  const currentVersion = row ? row.user_version : 0;
+  let currentVersion = row ? row.user_version : 0;
   console.log(`Database version: ${currentVersion}`);
 
   if (currentVersion < 1) {
     console.log('Running database migration to version 1 (add UNIQUE constraints)...');
     db.serialize(() => {
       db.run('BEGIN TRANSACTION');
-      
-      // *** FIX: Temporarily disable foreign keys to prevent CASCADE deletes during migration ***
       db.run('PRAGMA foreign_keys = OFF');
-
-      // Create new tables with UNIQUE constraints
       db.run(`
         CREATE TABLE vocabulary_new (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -47,41 +43,47 @@ db.get('PRAGMA user_version', (err, row) => {
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
       `);
-
-      // Copy data, automatically de-duplicating by grouping
       db.run(`
         INSERT INTO vocabulary_new (id, japanese, english, created_at)
         SELECT MIN(id), japanese, english, MIN(created_at) FROM vocabulary GROUP BY japanese
-      `, (err) => {
-        if (err) console.error("Migration error (vocabulary):", err.message);
-      });
+      `);
       db.run(`
         INSERT INTO sentences_new (id, japanese, english, created_at)
         SELECT MIN(id), japanese, english, MIN(created_at) FROM sentences GROUP BY japanese
-      `, (err) => {
-        if (err) console.error("Migration error (sentences):", err.message);
-      });
-
-      // Drop old tables (this is now safe)
+      `);
       db.run('DROP TABLE vocabulary');
       db.run('DROP TABLE sentences');
-
-      // Rename new tables to the original names
       db.run('ALTER TABLE vocabulary_new RENAME TO vocabulary');
       db.run('ALTER TABLE sentences_new RENAME TO sentences');
-
-      // Update the database version
       db.run('PRAGMA user_version = 1');
-
       db.run('COMMIT', (err) => {
         if (err) {
           console.error('Migration commit failed:', err);
           db.run('ROLLBACK');
         } else {
           console.log('Database migration to version 1 complete.');
+          currentVersion = 1; // Update for next migration check
         }
-        // Foreign keys will be re-enabled for the connection automatically after the transaction
-        // because of the PRAGMA ON at the top of the file.
+      });
+    });
+  }
+
+  if (currentVersion < 2) {
+    console.log('Running database migration to version 2 (add audio filename to vocabulary)...');
+    db.serialize(() => {
+      db.run('BEGIN TRANSACTION');
+      db.run('ALTER TABLE vocabulary ADD COLUMN audio_filename TEXT', (err) => {
+        if (err) console.error("Migration error (add audio_filename):", err.message);
+      });
+      db.run('PRAGMA user_version = 2');
+      db.run('COMMIT', (err) => {
+        if (err) {
+          console.error('Migration commit failed:', err);
+          db.run('ROLLBACK');
+        } else {
+          console.log('Database migration to version 2 complete.');
+          currentVersion = 2; // Update for next migration check
+        }
       });
     });
   }
@@ -96,7 +98,8 @@ db.serialize(() => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       japanese TEXT NOT NULL UNIQUE,
       english TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      audio_filename TEXT
     )
   `);
   
@@ -227,6 +230,7 @@ export const dbOps = {
           v.japanese,
           v.english,
           v.created_at,
+          v.audio_filename,
           srs.due_date,
           srs.repetitions
         FROM vocabulary v
@@ -268,6 +272,20 @@ export const dbOps = {
           if (err) reject(err);
           else resolve();
         });
+      });
+    });
+  },
+  updateWordAudio(wordId, filename) {
+    return new Promise((resolve, reject) => {
+      db.run('UPDATE vocabulary SET audio_filename = ? WHERE id = ?', [filename, wordId], (err) => {
+        if (err) reject(err); else resolve();
+      });
+    });
+  },
+  getWordById(wordId) {
+    return new Promise((resolve, reject) => {
+      db.get('SELECT * FROM vocabulary WHERE id = ?', [wordId], (err, row) => {
+        if (err) reject(err); else resolve(row);
       });
     });
   },

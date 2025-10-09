@@ -1,7 +1,8 @@
 // src/components/VocabularyManager.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, X, Check, Search, AlertTriangle, Clock, RotateCcw, Layers, BookOpen, Loader2, Star } from 'lucide-react';
+import { Plus, X, Check, Search, AlertTriangle, Clock, RotateCcw, Layers, BookOpen, Loader2, Star, Upload, Volume2, Trash2 } from 'lucide-react';
 import { api } from '../api';
+import { playAudio } from '../utils/audio';
 
 // Helper function to format the SRS due date
 const formatDueDate = (dueDateStr) => {
@@ -52,6 +53,8 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
   const [wordSets, setWordSets] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const japaneseInputRef = useRef(null);
+  const audioInputRef = useRef(null);
+  const [uploadingForWordId, setUploadingForWordId] = useState(null);
 
   // State for Definition Modal
   const [defModalOpen, setDefModalOpen] = useState(false);
@@ -194,6 +197,37 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
     setDefError(null);
   };
 
+  const handleUploadClick = (wordId) => {
+    setUploadingForWordId(wordId);
+    audioInputRef.current.click();
+  };
+
+  const handleFileSelected = async (event) => {
+    const file = event.target.files[0];
+    if (file && uploadingForWordId) {
+        try {
+            await api.uploadAudio(uploadingForWordId, file);
+            onRefresh();
+        } catch (error) {
+            alert(`Upload failed: ${error.message}`);
+        } finally {
+            setUploadingForWordId(null);
+            event.target.value = '';
+        }
+    }
+  };
+
+  const handleDeleteAudio = async (wordId) => {
+    if (window.confirm("Are you sure you want to delete the custom audio for this word?")) {
+        try {
+            await api.deleteAudio(wordId);
+            onRefresh();
+        } catch (error) {
+            alert(`Failed to delete audio: ${error.message}`);
+        }
+    }
+  };
+
   const filteredVocabulary = vocabulary.filter(word =>
     word.japanese.toLowerCase().includes(searchTerm.toLowerCase()) ||
     word.english.toLowerCase().includes(searchTerm.toLowerCase())
@@ -201,6 +235,13 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
 
   return (
     <div className="p-4 sm:p-6">
+      <input
+        type="file"
+        ref={audioInputRef}
+        onChange={handleFileSelected}
+        accept="audio/mpeg"
+        className="hidden"
+      />
       <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 dark:text-white">Vocabulary Management</h2>
             
       {deleteConfirmation && (
@@ -365,6 +406,14 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
                       <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-semibold ${srsStatus.color}`}>{srsStatus.text}</span></td>
                       <td className="px-4 py-3 text-center">
                         <div className="flex justify-center items-center gap-2">
+                           {word.audio_filename ? (
+                            <>
+                                <button onClick={() => playAudio(word)} className="text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300" title="Play custom audio"><Volume2 size={18} /></button>
+                                <button onClick={() => handleDeleteAudio(word.id)} className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" title="Delete custom audio"><Trash2 size={18} /></button>
+                            </>
+                            ) : (
+                                <button onClick={() => handleUploadClick(word.id)} className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" title="Upload MP3"><Upload size={18} /></button>
+                            )}
                           <button onClick={() => handleShowDefinition(word)} className="text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300" title="See definition"><BookOpen size={18} /></button>
                           <button onClick={() => handleOpenSetsModal(word)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" title="Manage sets"><Layers size={18} /></button>
                           {word.due_date && <button onClick={() => handleResetSrs(word.id, word.japanese)} className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" title="Reset SRS progress for this word"><RotateCcw size={18} /></button>}
@@ -393,6 +442,14 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
                     <div className="flex items-center gap-2"><Clock size={14} className="text-gray-500 dark:text-gray-400"/><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${srsStatus.color}`}>{srsStatus.text}</span></div>
                   </div>
                   <div className="flex flex-col items-center gap-2">
+                    {word.audio_filename ? (
+                        <>
+                            <button onClick={() => playAudio(word)} className="text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 p-2" title="Play custom audio"><Volume2 size={20} /></button>
+                            <button onClick={() => handleDeleteAudio(word.id)} className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-2" title="Delete custom audio"><Trash2 size={20} /></button>
+                        </>
+                    ) : (
+                        <button onClick={() => handleUploadClick(word.id)} className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 p-2" title="Upload MP3"><Upload size={20} /></button>
+                    )}
                     <button onClick={() => handleShowDefinition(word)} className="text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 p-2" title="See definition"><BookOpen size={20} /></button>
                     <button onClick={() => handleOpenSetsModal(word)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2" title="Manage sets"><Layers size={20} /></button>
                     {word.due_date && <button onClick={() => handleResetSrs(word.id, word.japanese)} className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 p-2" title="Reset SRS progress for this word"><RotateCcw size={20} /></button>}
