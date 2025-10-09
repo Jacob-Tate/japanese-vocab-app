@@ -122,6 +122,18 @@ export default function SrsPracticeSentences({ set, onExit, options }) {
       </div>
     );
   }
+  
+  if (!currentCard) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-6 text-center">
+        <h2 className="text-2xl font-bold mb-4 dark:text-white">Sentence Spaced Repetition</h2>
+        <p className="dark:text-gray-300">Something went wrong. No card to display.</p>
+        <button onClick={onExit} className="mt-4 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600">
+            Exit
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6">

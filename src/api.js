@@ -166,8 +166,14 @@ export const api = {
   },
 
   // Vocabulary SRS API
-  async getDueSrsWords(setId) {
-    const response = await fetch(`${API_URL}/srs/due?setId=${setId || 'all'}`);
+  async getDueSrsWords(setId, options = {}) {
+    const params = new URLSearchParams({
+      setId: setId || 'all',
+    });
+    if (options.reviewOnly) {
+      params.append('reviewOnly', 'true');
+    }
+    const response = await fetch(`${API_URL}/srs/due?${params.toString()}`);
     return response.json();
   },
 
@@ -195,8 +201,14 @@ export const api = {
   },
 
   // Sentence SRS API
-  async getDueSrsSentences(setId) {
-    const response = await fetch(`${API_URL}/srs/sentences/due?setId=${setId || 'all'}`);
+  async getDueSrsSentences(setId, options = {}) {
+    const params = new URLSearchParams({
+      setId: setId || 'all',
+    });
+    if (options.reviewOnly) {
+      params.append('reviewOnly', 'true');
+    }
+    const response = await fetch(`${API_URL}/srs/sentences/due?${params.toString()}`);
     return response.json();
   },
 

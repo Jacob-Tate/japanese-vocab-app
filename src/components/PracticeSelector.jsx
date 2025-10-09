@@ -120,8 +120,8 @@ export default function PracticeSelector({ sets, vocabulary, sentences, onStartG
     { key: 'sentenceScramble', name: 'Sentence Scramble', desc: 'Unscramble the sentence', icon: MessageSquare, color: 'indigo', content: 'sentences' },
   ];
 
-  const filteredWordGameModes = wordGameModes.filter(m => selectedSets.length === 1 || m.key !== 'srs');
-  const filteredSentenceGameModes = sentenceGameModes.filter(m => selectedSets.length === 1 || m.key !== 'srsSentences');
+  const filteredWordGameModes = wordGameModes.filter(m => !m.key.startsWith('srs') || (selectedSets.length === 1 && selectedSets[0].id === 'all'));
+  const filteredSentenceGameModes = sentenceGameModes.filter(m => !m.key.startsWith('srs') || (selectedSets.length === 1 && selectedSets[0].id === 'all'));
 
   const combinedSetForCount = selectedSets.length > 1 ? {
     wordIds: [...new Set(selectedSets.flatMap(s => s.wordIds || []))],

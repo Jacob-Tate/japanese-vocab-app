@@ -309,7 +309,8 @@ app.get('/api/srs/due', async (req, res) => {
   try {
     const setId = req.query.setId && req.query.setId !== 'all' ? req.query.setId : null;
     const limit = req.query.limit ? parseInt(req.query.limit, 10) : 20;
-    const words = await dbOps.getDueSrsWords(setId, limit);
+    const reviewOnly = req.query.reviewOnly === 'true';
+    const words = await dbOps.getDueSrsWords(setId, limit, reviewOnly);
     res.json(words);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -355,7 +356,8 @@ app.get('/api/srs/sentences/due', async (req, res) => {
   try {
     const setId = req.query.setId && req.query.setId !== 'all' ? req.query.setId : null;
     const limit = req.query.limit ? parseInt(req.query.limit, 10) : 20;
-    const sentences = await dbOps.getDueSrsSentences(setId, limit);
+    const reviewOnly = req.query.reviewOnly === 'true';
+    const sentences = await dbOps.getDueSrsSentences(setId, limit, reviewOnly);
     res.json(sentences);
   } catch (error) {
     res.status(500).json({ error: error.message });

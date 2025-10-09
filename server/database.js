@@ -540,17 +540,22 @@ export const dbOps = {
   },
 
   // SRS operations for Vocabulary
-  getDueSrsWords(setId, limit = 20) {
+  getDueSrsWords(setId, limit = 20, reviewOnly = false) {
     return new Promise((resolve, reject) => {
       const today = new Date().toISOString();
       let query;
       let params;
+      
+      const whereClause = reviewOnly
+        ? `srs.word_id IS NOT NULL AND srs.due_date <= ?`
+        : `srs.word_id IS NULL OR srs.due_date <= ?`;
+
       if (setId) {
         query = `
           SELECT v.* FROM vocabulary v
           JOIN set_words sw ON v.id = sw.word_id
           LEFT JOIN srs_data srs ON v.id = srs.word_id
-          WHERE sw.set_id = ? AND (srs.word_id IS NULL OR srs.due_date <= ?)
+          WHERE sw.set_id = ? AND (${whereClause})
           ORDER BY srs.due_date ASC, RANDOM()
           LIMIT ?
         `;
@@ -559,7 +564,7 @@ export const dbOps = {
         query = `
           SELECT v.* FROM vocabulary v
           LEFT JOIN srs_data srs ON v.id = srs.word_id
-          WHERE srs.word_id IS NULL OR srs.due_date <= ?
+          WHERE ${whereClause}
           ORDER BY srs.due_date ASC, RANDOM()
           LIMIT ?
         `;
@@ -654,17 +659,22 @@ export const dbOps = {
   },
 
   // SRS operations for Sentences
-  getDueSrsSentences(setId, limit = 20) {
+  getDueSrsSentences(setId, limit = 20, reviewOnly = false) {
     return new Promise((resolve, reject) => {
       const today = new Date().toISOString();
       let query;
       let params;
+
+      const whereClause = reviewOnly
+        ? `srs.sentence_id IS NOT NULL AND srs.due_date <= ?`
+        : `srs.sentence_id IS NULL OR srs.due_date <= ?`;
+
       if (setId) {
         query = `
           SELECT s.* FROM sentences s
           JOIN set_sentences ss ON s.id = ss.sentence_id
           LEFT JOIN srs_data_sentences srs ON s.id = srs.sentence_id
-          WHERE ss.set_id = ? AND (srs.sentence_id IS NULL OR srs.due_date <= ?)
+          WHERE ss.set_id = ? AND (${whereClause})
           ORDER BY srs.due_date ASC, RANDOM()
           LIMIT ?
         `;
@@ -673,7 +683,7 @@ export const dbOps = {
         query = `
           SELECT s.* FROM sentences s
           LEFT JOIN srs_data_sentences srs ON s.id = srs.sentence_id
-          WHERE srs.sentence_id IS NULL OR srs.due_date <= ?
+          WHERE ${whereClause}
           ORDER BY srs.due_date ASC, RANDOM()
           LIMIT ?
         `;
