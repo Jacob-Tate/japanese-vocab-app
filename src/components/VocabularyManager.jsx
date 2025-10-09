@@ -1,6 +1,6 @@
 // src/components/VocabularyManager.jsx
-import React, { useState, useEffect, useRef } from 'react';
-import { Plus, X, Check, Search, AlertTriangle, Clock, RotateCcw, Layers, BookOpen, Loader2, Star, Upload, Volume2, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Plus, X, Check, Search, AlertTriangle, Clock, RotateCcw, Layers, BookOpen, Loader2, Star, Upload, Volume2, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 import { api } from '../api';
 import { playAudio } from '../utils/audio';
 
@@ -55,6 +55,11 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
   const japaneseInputRef = useRef(null);
   const audioInputRef = useRef(null);
   const [uploadingForWordId, setUploadingForWordId] = useState(null);
+  const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'descending' });
+  const [newSetName, setNewSetName] = useState('');
+  const [newWordAudioFile, setNewWordAudioFile] = useState(null);
+  const [isSetListVisible, setIsSetListVisible] = useState(false);
+  const [isAddingWord, setIsAddingWord] = useState(false);
 
   // State for Definition Modal
   const [defModalOpen, setDefModalOpen] = useState(false);
@@ -75,25 +80,61 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
     };
   }, []);
 
+  const handleAudioFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (file && file.type === 'audio/mpeg') {
+      setNewWordAudioFile(file);
+    } else if (file) {
+      alert('Only .mp3 files are allowed.');
+    }
+    event.target.value = ''; // Reset file input to allow re-selection of the same file
+  };
+
   const handleAdd = async () => {
     if (japanese.trim() && english.trim()) {
+      setIsAddingWord(true);
       setAddError(null);
       try {
-        await api.addVocab({ 
+        const newWord = await api.addVocab({ 
           japanese: japanese.trim(), 
           english: english.trim(),
           setIds: newWordSets
         });
+
+        if (newWordAudioFile && newWord.id) {
+          await api.uploadAudio(newWord.id, newWordAudioFile);
+        }
+
         setJapanese('');
         setEnglish('');
-        setNewWordSets([]);
+        setNewWordAudioFile(null); // Clear audio file after successful add
+        // Do not clear newWordSets to allow rapid entry
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 2000);
         onRefresh();
+        japaneseInputRef.current?.focus(); // Focus back on the Japanese input
       } catch (error) {
         setAddError(error.message);
         setTimeout(() => setAddError(null), 5000);
+      } finally {
+        setIsAddingWord(false);
       }
+    }
+  };
+  
+  const handleCreateNewSet = async () => {
+    if (newSetName.trim()) {
+        try {
+            const newSet = await api.addSet({ name: newSetName.trim(), wordIds: [], sentenceIds: [] });
+            setNewSetName('');
+            await onRefresh(); // Refresh the list of sets
+            // Automatically select the new set
+            setNewWordSets(prev => [...prev, newSet.id]);
+        } catch (error) {
+            console.error("Failed to create new set:", error);
+            setAddError(error.message);
+            setTimeout(() => setAddError(null), 5000);
+        }
     }
   };
 
@@ -228,10 +269,46 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
     }
   };
 
-  const filteredVocabulary = vocabulary.filter(word =>
-    word.japanese.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    word.english.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredVocabulary = useMemo(() => 
+    vocabulary.filter(word =>
+      word.japanese.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      word.english.toLowerCase().includes(searchTerm.toLowerCase())
+    ), [vocabulary, searchTerm]);
+  
+  const requestSort = (key) => {
+    let direction = 'ascending';
+    if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+      direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+  
+  const sortedAndFilteredVocabulary = useMemo(() => {
+    let sortableItems = [...filteredVocabulary];
+    if (sortConfig.key) {
+        sortableItems.sort((a, b) => {
+            const valA = a[sortConfig.key];
+            const valB = b[sortConfig.key];
+  
+            if (valA === null || valA === undefined) return sortConfig.direction === 'ascending' ? -1 : 1;
+            if (valB === null || valB === undefined) return sortConfig.direction === 'ascending' ? 1 : -1;
+  
+            if (valA < valB) {
+                return sortConfig.direction === 'ascending' ? -1 : 1;
+            }
+            if (valA > valB) {
+                return sortConfig.direction === 'ascending' ? 1 : -1;
+            }
+            return 0;
+        });
+    }
+    return sortableItems;
+  }, [filteredVocabulary, sortConfig]);
+
+  const SortIndicator = ({ columnKey }) => {
+    if (sortConfig.key !== columnKey) return null;
+    return sortConfig.direction === 'ascending' ? <ArrowUp size={14} /> : <ArrowDown size={14} />;
+  };
 
   return (
     <div className="p-4 sm:p-6">
@@ -352,26 +429,84 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
           <input type="text" placeholder="English" value={english} onChange={(e) => setEnglish(e.target.value)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white dark:placeholder-gray-400"/>
         </div>
         <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Add to sets (optional)
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Audio (optional, .mp3 only)
+          </label>
+          <div className="flex items-center gap-4">
+            <input 
+              type="file" 
+              accept="audio/mpeg"
+              onChange={handleAudioFileSelect}
+              className="hidden"
+              id="new-word-audio-input"
+            />
+            <label htmlFor="new-word-audio-input" className="cursor-pointer bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 rounded-lg inline-flex items-center gap-2">
+              <Upload size={18} />
+              Choose File
             </label>
-            <div className="max-h-32 overflow-y-auto border dark:border-gray-600 rounded-lg p-2 space-y-1 bg-gray-50 dark:bg-gray-800">
-                {sets.length > 0 ? sets.map(set => (
-                    <label key={set.id} className="flex items-center gap-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer rounded">
-                        <input
-                            type="checkbox"
-                            checked={newWordSets.includes(set.id)}
-                            onChange={() => handleNewWordSetToggle(set.id)}
-                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-600 dark:border-gray-500"
-                        />
-                        <span className="dark:text-gray-200">{set.name}</span>
-                    </label>
-                )) : (
-                    <p className="text-sm text-gray-500 dark:text-gray-400 text-center p-2">No sets created yet.</p>
-                )}
-            </div>
+            {newWordAudioFile && (
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                <span>{newWordAudioFile.name}</span>
+                <button onClick={() => setNewWordAudioFile(null)} className="p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900 text-red-500">
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-        <button onClick={handleAdd} className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 flex items-center gap-2"><Plus size={20} /> Add Word</button>
+
+        <div className="mb-4">
+          <button 
+            onClick={() => setIsSetListVisible(!isSetListVisible)}
+            className="w-full flex justify-between items-center text-left p-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+          >
+            <span className="font-medium text-gray-700 dark:text-gray-300">
+              Add to sets {newWordSets.length > 0 ? `(${newWordSets.length} selected)` : '(optional)'}
+            </span>
+            <Layers size={20} className="text-gray-500 dark:text-gray-400" />
+          </button>
+          
+          {isSetListVisible && (
+            <div className="mt-2 p-3 border dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800">
+              <div className="flex items-center gap-2 mb-2">
+                  <input 
+                      type="text" 
+                      placeholder="Create new set..." 
+                      value={newSetName} 
+                      onChange={(e) => setNewSetName(e.target.value)}
+                      className="flex-grow px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  />
+                  <button 
+                      onClick={handleCreateNewSet}
+                      disabled={!newSetName.trim()}
+                      className="p-1.5 bg-green-500 text-white rounded-md hover:bg-green-600 disabled:bg-gray-400"
+                      title="Create and select new set"
+                  >
+                      <Plus size={16} />
+                  </button>
+              </div>
+              <div className="max-h-32 overflow-y-auto border dark:border-gray-600 rounded-lg p-2 space-y-1 bg-white dark:bg-gray-700">
+                  {sets.length > 0 ? sets.map(set => (
+                      <label key={set.id} className="flex items-center gap-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer rounded">
+                          <input
+                              type="checkbox"
+                              checked={newWordSets.includes(set.id)}
+                              onChange={() => handleNewWordSetToggle(set.id)}
+                              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-600 dark:border-gray-500"
+                          />
+                          <span className="dark:text-gray-200">{set.name}</span>
+                      </label>
+                  )) : (
+                      <p className="text-sm text-gray-500 dark:text-gray-400 text-center p-2">No sets created yet.</p>
+                  )}
+              </div>
+            </div>
+          )}
+        </div>
+        <button onClick={handleAdd} disabled={isAddingWord} className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 flex items-center gap-2 disabled:bg-blue-300 dark:disabled:bg-blue-800">
+            {isAddingWord ? <Loader2 className="animate-spin" size={20}/> : <Plus size={20} />} 
+            {isAddingWord ? 'Adding...' : 'Add Word'}
+        </button>
         {showSuccess && (<div className="mt-4 text-green-600 dark:text-green-400 flex items-center gap-2"><Check size={20} /> Word added successfully!</div>)}
         {addError && (<div className="mt-4 text-red-600 dark:text-red-400 flex items-center gap-2"><AlertTriangle size={20} /> {addError}</div>)}
       </div>
@@ -382,22 +517,50 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
           <Search className="absolute left-3 top-3 text-gray-400 dark:text-gray-500" size={20} />
           <input type="text" placeholder="Search vocabulary..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base dark:bg-gray-600 dark:text-white dark:placeholder-gray-400"/>
         </div>
+        
+        {/* Mobile Sort Controls */}
+        <div className="sm:hidden mb-4 flex items-center gap-2">
+            <label htmlFor="sort-select" className="text-sm font-medium dark:text-gray-300">Sort by:</label>
+            <select
+              id="sort-select"
+              value={sortConfig.key}
+              onChange={(e) => requestSort(e.target.value)}
+              className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm dark:bg-gray-600 dark:text-white"
+            >
+              <option value="created_at">Date Added</option>
+              <option value="japanese">Japanese</option>
+              <option value="english">English</option>
+              <option value="due_date">SRS Status</option>
+            </select>
+            <button 
+              onClick={() => setSortConfig(c => ({...c, direction: c.direction === 'ascending' ? 'descending' : 'ascending' }))} 
+              className="p-2 bg-gray-100 dark:bg-gray-500 rounded-lg"
+            >
+              {sortConfig.direction === 'ascending' ? <ArrowUp size={16} className="dark:text-white"/> : <ArrowDown size={16} className="dark:text-white"/>}
+            </button>
+        </div>
                 
         <div className="hidden sm:block max-h-96 overflow-y-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-gray-600 sticky top-0">
               <tr>
-                <th className="px-4 py-2 text-left font-semibold dark:text-gray-200">Japanese</th>
-                <th className="px-4 py-2 text-left font-semibold dark:text-gray-200">English</th>
-                <th className="px-4 py-2 text-left font-semibold dark:text-gray-200">SRS Status</th>
+                <th className="px-4 py-2 text-left font-semibold dark:text-gray-200">
+                  <button onClick={() => requestSort('japanese')} className="flex items-center gap-1 hover:text-blue-500 dark:hover:text-blue-400">Japanese <SortIndicator columnKey="japanese" /></button>
+                </th>
+                <th className="px-4 py-2 text-left font-semibold dark:text-gray-200">
+                  <button onClick={() => requestSort('english')} className="flex items-center gap-1 hover:text-blue-500 dark:hover:text-blue-400">English <SortIndicator columnKey="english" /></button>
+                </th>
+                <th className="px-4 py-2 text-left font-semibold dark:text-gray-200">
+                  <button onClick={() => requestSort('due_date')} className="flex items-center gap-1 hover:text-blue-500 dark:hover:text-blue-400">SRS Status <SortIndicator columnKey="due_date" /></button>
+                </th>
                 <th className="px-4 py-2 text-center font-semibold dark:text-gray-200">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredVocabulary.length === 0 ? (
+              {sortedAndFilteredVocabulary.length === 0 ? (
                 <tr><td colSpan="4" className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">{searchTerm ? 'No vocabulary found matching your search' : 'No vocabulary added yet'}</td></tr>
               ) : (
-                filteredVocabulary.map((word) => {
+                sortedAndFilteredVocabulary.map((word) => {
                   const srsStatus = formatDueDate(word.due_date);
                   return (
                     <tr key={word.id} className="border-t dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600">
@@ -429,10 +592,10 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
         </div>
                 
         <div className="sm:hidden max-h-96 overflow-y-auto space-y-3">
-          {filteredVocabulary.length === 0 ? (
+          {sortedAndFilteredVocabulary.length === 0 ? (
             <div className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">{searchTerm ? 'No vocabulary found matching your search' : 'No vocabulary added yet'}</div>
           ) : (
-            filteredVocabulary.map((word) => {
+            sortedAndFilteredVocabulary.map((word) => {
               const srsStatus = formatDueDate(word.due_date);
               return (
                 <div key={word.id} className="bg-gray-50 dark:bg-gray-600 rounded-lg p-4 flex justify-between items-start">
