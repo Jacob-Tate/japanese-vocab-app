@@ -2,12 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { RotateCcw, Volume2 } from 'lucide-react';
 import { playAudio } from '../utils/audio';
+import { api } from '../api';
 
 export default function FlashcardDrillSentences({ set, sentences, onExit, startingSide = 'japanese', audioMode = false }) {
   const [cards, setCards] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
   const [studied, setStudied] = useState(0);
+  const [viewedCardIds, setViewedCardIds] = useState(new Set());
 
   useEffect(() => {
     const setSentences = sentences.filter(s => set.sentenceIds.includes(s.id));
@@ -21,6 +23,12 @@ export default function FlashcardDrillSentences({ set, sentences, onExit, starti
       playAudio(cards[currentIndex]);
     }
   }, [currentIndex, cards, showAnswer, audioMode, startingSide]);
+
+  useEffect(() => {
+    if (cards.length > 0) {
+      setViewedCardIds(prev => new Set(prev).add(cards[currentIndex].id));
+    }
+  }, [currentIndex, cards]);
 
   const handleFlip = () => {
     setShowAnswer(!showAnswer);
@@ -50,6 +58,36 @@ export default function FlashcardDrillSentences({ set, sentences, onExit, starti
     setShowAnswer(false);
   };
 
+  const handleExit = async () => {
+    if (viewedCardIds.size > 0) {
+      const reviewedSentences = Array.from(viewedCardIds).map(id => {
+        return sentences.find(s => s.id === id)?.japanese;
+      }).filter(Boolean);
+
+      const payload = {
+        gameMode: 'flashcard_sentences',
+        score: 0,
+        metadata: {
+          repetitions: viewedCardIds.size,
+          words: reviewedSentences.map(s => s.substring(0, 20) + '...').join(', '),
+        },
+      };
+
+      if (set.sourceSetIds) {
+        payload.setIds = set.sourceSetIds;
+      } else {
+        payload.setId = set.id;
+      }
+      
+      try {
+        await api.saveGameSession(payload);
+      } catch (error) {
+        console.error('Failed to save sentence flashcard session:', error);
+      }
+    }
+    onExit();
+  };
+
   if (cards.length === 0) return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-6 text-center">
         <h2 className="text-2xl font-bold mb-4 dark:text-white">Sentence Flashcards: {set.name}</h2>
@@ -74,7 +112,7 @@ export default function FlashcardDrillSentences({ set, sentences, onExit, starti
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 sm:mb-6">
         <h2 className="text-xl sm:text-2xl font-bold dark:text-white">Sentence Flashcards: {set.name}</h2>
         <button
-          onClick={onExit}
+          onClick={handleExit}
           className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 w-full sm:w-auto"
         >
           Exit

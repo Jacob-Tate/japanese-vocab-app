@@ -824,10 +824,12 @@ export const dbOps = {
       const query = `
         SELECT 
           rh.id, rh.item_id, rh.item_type, rh.game_mode, rh.result, rh.reviewed_at,
-          COALESCE(v.japanese, s.japanese) as japanese
+          COALESCE(v.japanese, s.japanese) as japanese,
+          sets.name as set_name
         FROM review_history rh
         LEFT JOIN vocabulary v ON rh.item_id = v.id AND rh.item_type = 'word'
         LEFT JOIN sentences s ON rh.item_id = s.id AND rh.item_type = 'sentence'
+        LEFT JOIN sets ON rh.item_id = sets.id AND rh.item_type = 'session'
         ORDER BY rh.reviewed_at DESC
         LIMIT ?
       `;

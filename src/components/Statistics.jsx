@@ -1,6 +1,6 @@
 // src/components/Statistics.jsx
 import React, { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, Clock, Target, Award, Calendar, CheckCircle, XCircle, Flame } from 'lucide-react';
+import { BarChart3, TrendingUp, Clock, Target, Award, Calendar, CheckCircle, XCircle, Flame, BookOpen } from 'lucide-react';
 import { api } from '../api';
 
 const StreakWidget = ({ streakData }) => {
@@ -27,6 +27,8 @@ const ReviewHistory = ({ history }) => {
     typing: 'Typing Challenge',
     audio_quiz: 'Audio Quiz',
     sentence_scramble: 'Sentence Scramble',
+    flashcard: 'Flashcard Drill',
+    flashcard_sentences: 'Sentence Flashcards',
   };
 
   return (
@@ -37,15 +39,28 @@ const ReviewHistory = ({ history }) => {
       ) : (
         <div className="space-y-3 max-h-96 overflow-y-auto">
           {history.map(item => (
-            <div key={item.id} className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-              {item.result === 'correct' ? (
-                <CheckCircle size={24} className="text-green-500 flex-shrink-0" />
-              ) : (
-                <XCircle size={24} className="text-red-500 flex-shrink-0" />
-              )}
+            <div key={item.id} className="flex items-start gap-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div className="flex-shrink-0 mt-1">
+                {item.item_type === 'session' ? (
+                  <BookOpen size={24} className="text-blue-500" />
+                ) : item.result === 'correct' ? (
+                  <CheckCircle size={24} className="text-green-500" />
+                ) : (
+                  <XCircle size={24} className="text-red-500" />
+                )}
+              </div>
               <div className="flex-grow">
-                <p className="font-semibold dark:text-white">{item.japanese}</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{gameModeNames[item.game_mode] || item.game_mode}</p>
+                {item.item_type === 'session' ? (
+                  <>
+                    <p className="font-semibold dark:text-white">{gameModeNames[item.game_mode] || item.game_mode} on "{item.set_name}"</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{item.result}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-semibold dark:text-white">{item.japanese}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{gameModeNames[item.game_mode] || item.game_mode}</p>
+                  </>
+                )}
               </div>
               <p className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
                 {new Date(item.reviewed_at).toLocaleString()}
@@ -133,7 +148,9 @@ export default function Statistics() {
     audio_quiz: 'Audio Quiz',
     sentence_scramble: 'Sentence Scramble',
     typing_blitz: 'Typing Blitz',
-    crossword: 'Crossword'
+    crossword: 'Crossword',
+    flashcard: 'Flashcard Drill',
+    flashcard_sentences: 'Sentence Flashcards',
   };
 
   return (

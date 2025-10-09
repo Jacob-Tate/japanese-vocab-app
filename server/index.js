@@ -274,15 +274,29 @@ app.post('/api/game-sessions', async (req, res) => {
 
     const processSession = async (id) => {
       await dbOps.saveGameSession(id, gameMode, score, metadata);
-      // If metadata contains results, log them to review history
+      let activity_happened = false;
+
+      // For flashcard sessions, create a single summary entry in review_history
+      if (gameMode.includes('flashcard') && metadata && metadata.repetitions > 0) {
+          const words = metadata.words || '';
+          const summary = words.length > 100 ? words.substring(0, 97) + '...' : words;
+          const resultText = `Reviewed ${metadata.repetitions} items: ${summary}`;
+          await dbOps.addReviewHistory(id, 'session', gameMode, resultText);
+          activity_happened = true;
+      }
+      
+      // For other games with individual results, log each one
       if (metadata && metadata.results && Array.isArray(metadata.results)) {
         for (const result of metadata.results) {
           await dbOps.addReviewHistory(result.itemId, result.itemType, gameMode, result.result);
         }
-        // Update streak once after processing all reviews for this session.
         if (metadata.results.length > 0) {
-            await dbOps.updateStreak();
+            activity_happened = true;
         }
+      }
+
+      if (activity_happened) {
+          await dbOps.updateStreak();
       }
     };
 
