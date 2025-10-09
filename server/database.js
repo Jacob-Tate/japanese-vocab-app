@@ -198,11 +198,23 @@ db.serialize(() => {
     )
   `);
 
-  // NEW: App settings table
+  // App settings table
   db.run(`
     CREATE TABLE IF NOT EXISTS app_settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
+    )
+  `);
+  
+  // NEW: Review history table
+  db.run(`
+    CREATE TABLE IF NOT EXISTS review_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      item_id INTEGER NOT NULL,
+      item_type TEXT NOT NULL, -- 'word' or 'sentence'
+      game_mode TEXT NOT NULL,
+      result TEXT NOT NULL, -- 'correct' or 'incorrect'
+      reviewed_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
 });
@@ -773,7 +785,7 @@ export const dbOps = {
     });
   },
 
-  // NEW: App Settings
+  // App Settings
   getSettings() {
     return new Promise((resolve, reject) => {
       db.all('SELECT key, value FROM app_settings', (err, rows) => {
@@ -792,6 +804,84 @@ export const dbOps = {
         if (err) reject(err); else resolve();
       });
     });
+  },
+
+  // NEW: Review History operations
+  addReviewHistory(itemId, itemType, gameMode, result) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'INSERT INTO review_history (item_id, item_type, game_mode, result) VALUES (?, ?, ?, ?)',
+        [itemId, itemType, gameMode, result],
+        function (err) {
+          if (err) reject(err);
+          else resolve({ id: this.lastID });
+        }
+      );
+    });
+  },
+  getReviewHistory(limit = 100) {
+    return new Promise((resolve, reject) => {
+      const query = `
+        SELECT 
+          rh.id, rh.item_id, rh.item_type, rh.game_mode, rh.result, rh.reviewed_at,
+          COALESCE(v.japanese, s.japanese) as japanese
+        FROM review_history rh
+        LEFT JOIN vocabulary v ON rh.item_id = v.id AND rh.item_type = 'word'
+        LEFT JOIN sentences s ON rh.item_id = s.id AND rh.item_type = 'sentence'
+        ORDER BY rh.reviewed_at DESC
+        LIMIT ?
+      `;
+      db.all(query, [limit], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+  },
+
+  // NEW: Streak operations
+  async updateStreak() {
+    const today = new Date().toISOString().split('T')[0];
+    const settings = await this.getSettings();
+    const lastActive = settings.streak_last_active || null;
+    let currentStreak = parseInt(settings.streak_current || '0', 10);
+
+    if (lastActive === today) {
+      return; // Already active today, do nothing.
+    }
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+    if (lastActive === yesterdayStr) {
+      currentStreak++; // Continued the streak
+    } else {
+      currentStreak = 1; // Streak broken or first time
+    }
+    
+    await Promise.all([
+        this.updateSetting('streak_current', currentStreak.toString()),
+        this.updateSetting('streak_last_active', today)
+    ]);
+  },
+  async getStreak() {
+    const settings = await this.getSettings();
+    const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+    const lastActive = settings.streak_last_active || null;
+    let currentStreak = parseInt(settings.streak_current || '0', 10);
+    
+    if (lastActive !== today && lastActive !== yesterdayStr) {
+      currentStreak = 0; // Streak is broken
+    }
+    
+    return {
+      current: currentStreak,
+      lastActive: settings.streak_last_active,
+    };
   },
 };
 

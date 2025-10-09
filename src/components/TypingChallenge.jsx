@@ -45,10 +45,16 @@ export default function TypingChallenge({ set, vocabulary, onExit, startingSide 
   const saveGameCompletion = async (finalScore) => {
     if (set.id === 'all') return;
 
+    const reviewResults = results.map(r => ({
+      itemId: r.word.id,
+      itemType: 'word',
+      result: r.isCorrect ? 'correct' : 'incorrect'
+    }));
+
     const payload = {
       gameMode: 'typing',
       score: finalScore,
-      metadata: { repetitions, startingSide, romajiMode },
+      metadata: { repetitions, startingSide, romajiMode, results: reviewResults },
     };
     if (isMultiSet) {
       payload.setIds = set.sourceSetIds;

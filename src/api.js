@@ -256,5 +256,15 @@ export const api = {
         throw new Error(errorData.error || 'Failed to search dictionary.');
     }
     return response.json();
-  }
+  },
+
+  // NEW Review History and Streak API
+  async getReviews() {
+    const response = await fetch(`${API_URL}/reviews`);
+    return response.json();
+  },
+  async getStreak() {
+    const response = await fetch(`${API_URL}/streak`);
+    return response.json();
+  },
 };

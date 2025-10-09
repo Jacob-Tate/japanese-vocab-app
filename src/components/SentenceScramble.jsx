@@ -15,6 +15,7 @@ export default function SentenceScramble({ set, sentences, onExit }) {
   const [isComplete, setIsComplete] = useState(false);
   const [highScore, setHighScore] = useState(0);
   const [isNewHighScore, setIsNewHighScore] = useState(false);
+  const [results, setResults] = useState([]);
   const isMultiSet = !!set.sourceSetIds;
   const [tokenizer, setTokenizer] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,9 +51,16 @@ export default function SentenceScramble({ set, sentences, onExit }) {
   const saveGameCompletion = async (finalScore) => {
     if (set.id === 'all') return;
 
+    const reviewResults = results.map(r => ({
+      itemId: r.question.id,
+      itemType: 'sentence',
+      result: r.isCorrect ? 'correct' : 'incorrect'
+    }));
+
     const payload = {
       gameMode: 'sentence_scramble',
       score: finalScore,
+      metadata: { results: reviewResults },
     };
     if (isMultiSet) {
       payload.setIds = set.sourceSetIds;
@@ -85,6 +93,7 @@ export default function SentenceScramble({ set, sentences, onExit }) {
     setQuestions(shuffled);
     setCurrentIndex(0);
     setScore(0);
+    setResults([]);
     setIsComplete(false);
     setIsNewHighScore(false);
     if (shuffled.length > 0) {
@@ -113,7 +122,11 @@ export default function SentenceScramble({ set, sentences, onExit }) {
   const checkAnswer = () => {
     const userAnswer = answer.join('');
     const correctAnswer = questions[currentIndex].japanese;
-    if (userAnswer === correctAnswer) {
+    const isCorrect = userAnswer === correctAnswer;
+    
+    setResults(prev => [...prev, { question: questions[currentIndex], isCorrect }]);
+
+    if (isCorrect) {
       const newScore = score + 10;
       setScore(newScore);
       setFeedback('correct');

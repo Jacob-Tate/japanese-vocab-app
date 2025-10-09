@@ -13,6 +13,7 @@ export default function AudioQuiz({ set, vocabulary, onExit, repetitions = 1 }) 
   const [isComplete, setIsComplete] = useState(false);
   const [highScore, setHighScore] = useState(0);
   const [isNewHighScore, setIsNewHighScore] = useState(false);
+  const [results, setResults] = useState([]);
   const isMultiSet = !!set.sourceSetIds;
 
   useEffect(() => {
@@ -41,10 +42,16 @@ export default function AudioQuiz({ set, vocabulary, onExit, repetitions = 1 }) 
   const saveGameCompletion = async (finalScore) => {
     if (set.id === 'all') return;
 
+    const reviewResults = results.map(r => ({
+      itemId: r.word.id,
+      itemType: 'word',
+      result: r.isCorrect ? 'correct' : 'incorrect'
+    }));
+
     const payload = {
       gameMode: 'audio_quiz',
       score: finalScore,
-      metadata: { repetitions },
+      metadata: { repetitions, results: reviewResults },
     };
     if (isMultiSet) {
       payload.setIds = set.sourceSetIds;
@@ -105,6 +112,7 @@ export default function AudioQuiz({ set, vocabulary, onExit, repetitions = 1 }) 
     setSelectedAnswer(null);
     setFeedback(null);
     setScore(0);
+    setResults([]);
     setIsComplete(false);
     setIsNewHighScore(false);
   };
@@ -114,6 +122,11 @@ export default function AudioQuiz({ set, vocabulary, onExit, repetitions = 1 }) 
 
     setSelectedAnswer(answer);
     const isCorrect = answer === questions[currentIndex].correctAnswer;
+    
+    setResults(prev => [...prev, {
+      word: questions[currentIndex].questionWord,
+      isCorrect
+    }]);
             
     if (isCorrect) {
       setScore(score + 10);

@@ -13,6 +13,7 @@ export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSi
   const [isComplete, setIsComplete] = useState(false);
   const [highScore, setHighScore] = useState(0);
   const [isNewHighScore, setIsNewHighScore] = useState(false);
+  const [results, setResults] = useState([]);
   const isMultiSet = !!set.sourceSetIds;
 
   useEffect(() => {
@@ -44,10 +45,16 @@ export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSi
   const saveGameCompletion = async (finalScore) => {
     if (set.id === 'all') return;
 
+    const reviewResults = results.map(r => ({
+      itemId: r.question.questionWord.id,
+      itemType: 'word',
+      result: r.isCorrect ? 'correct' : 'incorrect'
+    }));
+
     const payload = {
       gameMode: 'quiz',
       score: finalScore,
-      metadata: { repetitions, startingSide },
+      metadata: { repetitions, startingSide, results: reviewResults },
     };
     if (isMultiSet) {
       payload.setIds = set.sourceSetIds;
@@ -109,6 +116,7 @@ export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSi
     setSelectedAnswer(null);
     setFeedback(null);
     setScore(0);
+    setResults([]);
     setIsComplete(false);
     setIsNewHighScore(false);
   };
@@ -118,6 +126,8 @@ export default function MultipleChoiceQuiz({ set, vocabulary, onExit, startingSi
 
     setSelectedAnswer(answer);
     const isCorrect = answer === questions[currentIndex].correctAnswer;
+    
+    setResults(prev => [...prev, { question: questions[currentIndex], isCorrect }]);
             
     if (isCorrect) {
       setScore(score + 10);

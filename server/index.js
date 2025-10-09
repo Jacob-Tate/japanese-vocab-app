@@ -271,13 +271,29 @@ app.get('/api/highscores/:setId', async (req, res) => {
 app.post('/api/game-sessions', async (req, res) => {
   try {
     const { setId, setIds, gameMode, score, metadata } = req.body;
+
+    const processSession = async (id) => {
+      await dbOps.saveGameSession(id, gameMode, score, metadata);
+      // If metadata contains results, log them to review history
+      if (metadata && metadata.results && Array.isArray(metadata.results)) {
+        for (const result of metadata.results) {
+          await dbOps.addReviewHistory(result.itemId, result.itemType, gameMode, result.result);
+        }
+        // Update streak once after processing all reviews for this session.
+        if (metadata.results.length > 0) {
+            await dbOps.updateStreak();
+        }
+      }
+    };
+
     if (setIds && Array.isArray(setIds)) {
-      const promises = setIds.map(id => dbOps.saveGameSession(id, gameMode, score, metadata));
-      await Promise.all(promises);
+      for (const id of setIds) {
+        await processSession(id);
+      }
       res.json({ success: true, count: setIds.length });
     } else if (setId) {
-      const result = await dbOps.saveGameSession(setId, gameMode, score, metadata);
-      res.json(result);
+      await processSession(setId);
+      res.json({ success: true });
     } else {
       res.status(400).json({ error: 'Either setId or setIds must be provided.' });
     }
@@ -324,6 +340,8 @@ app.post('/api/srs/review', async (req, res) => {
         return res.status(400).json({ error: 'wordId and quality are required' });
     }
     await dbOps.updateSrsReview(wordId, quality);
+    await dbOps.addReviewHistory(wordId, 'word', 'srs', quality);
+    await dbOps.updateStreak();
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -371,6 +389,8 @@ app.post('/api/srs/sentences/review', async (req, res) => {
         return res.status(400).json({ error: 'sentenceId and quality are required' });
     }
     await dbOps.updateSrsReviewSentence(sentenceId, quality);
+    await dbOps.addReviewHistory(sentenceId, 'sentence', 'srs_sentences', quality);
+    await dbOps.updateStreak();
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -387,7 +407,7 @@ app.get('/api/srs/sentences/stats', async (req, res) => {
   }
 });
 
-// NEW: App Settings Routes
+// App Settings Routes
 app.get('/api/settings', async (req, res) => {
   try {
     const settings = await dbOps.getSettings();
@@ -414,7 +434,6 @@ app.post('/api/settings', async (req, res) => {
 app.get('/api/dictionary/:term', async (req, res) => {
   try {
     const term = encodeURIComponent(req.params.term);
-    // Use jisho.org's unofficial API
     const response = await fetch(`https://jisho.org/api/v1/search/words?keyword=${term}`);
     if (!response.ok) {
       throw new Error(`Jisho API responded with status ${response.status}`);
@@ -427,6 +446,25 @@ app.get('/api/dictionary/:term', async (req, res) => {
   }
 });
 
+// NEW Endpoints for streak and history
+app.get('/api/streak', async (req, res) => {
+  try {
+    const streak = await dbOps.getStreak();
+    res.json(streak);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/reviews', async (req, res) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit, 10) : 100;
+    const history = await dbOps.getReviewHistory(limit);
+    res.json(history);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
