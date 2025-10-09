@@ -472,8 +472,13 @@ app.get('/api/streak', async (req, res) => {
 
 app.get('/api/reviews', async (req, res) => {
   try {
-    const limit = req.query.limit ? parseInt(req.query.limit, 10) : 100;
-    const history = await dbOps.getReviewHistory(limit);
+    const { limit, startDate, endDate } = req.query;
+    const options = {
+      limit: limit ? parseInt(limit, 10) : 100,
+      startDate,
+      endDate,
+    };
+    const history = await dbOps.getReviewHistory(options);
     res.json(history);
   } catch (error) {
     res.status(500).json({ error: error.message });

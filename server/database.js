@@ -819,8 +819,24 @@ export const dbOps = {
       );
     });
   },
-  getReviewHistory(limit = 100) {
+  getReviewHistory(options = {}) {
     return new Promise((resolve, reject) => {
+      const { limit = 100, startDate, endDate } = options;
+      
+      let whereClauses = [];
+      let params = [];
+
+      if (startDate) {
+        whereClauses.push('rh.reviewed_at >= ?');
+        params.push(startDate);
+      }
+      if (endDate) {
+        whereClauses.push('rh.reviewed_at <= ?');
+        params.push(endDate);
+      }
+      
+      const whereString = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
       const query = `
         SELECT 
           rh.id, rh.item_id, rh.item_type, rh.game_mode, rh.result, rh.reviewed_at,
@@ -830,10 +846,16 @@ export const dbOps = {
         LEFT JOIN vocabulary v ON rh.item_id = v.id AND rh.item_type = 'word'
         LEFT JOIN sentences s ON rh.item_id = s.id AND rh.item_type = 'sentence'
         LEFT JOIN sets ON rh.item_id = sets.id AND rh.item_type = 'session'
+        ${whereString}
         ORDER BY rh.reviewed_at DESC
-        LIMIT ?
+        ${!startDate && !endDate ? 'LIMIT ?' : ''}
       `;
-      db.all(query, [limit], (err, rows) => {
+
+      if (!startDate && !endDate) {
+          params.push(limit);
+      }
+
+      db.all(query, params, (err, rows) => {
         if (err) reject(err);
         else resolve(rows);
       });

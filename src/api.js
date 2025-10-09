@@ -259,8 +259,13 @@ export const api = {
   },
 
   // NEW Review History and Streak API
-  async getReviews() {
-    const response = await fetch(`${API_URL}/reviews`);
+  async getReviews(options = {}) {
+    const params = new URLSearchParams();
+    if (options.limit) params.append('limit', options.limit);
+    if (options.startDate) params.append('startDate', options.startDate);
+    if (options.endDate) params.append('endDate', options.endDate);
+
+    const response = await fetch(`${API_URL}/reviews?${params.toString()}`);
     return response.json();
   },
   async getStreak() {

@@ -1,14 +1,15 @@
 // src/components/Statistics.jsx
 import React, { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, Clock, Target, Award, Calendar, CheckCircle, XCircle, Flame, BookOpen } from 'lucide-react';
+import { BarChart3, TrendingUp, Target, Award, CheckCircle, XCircle, Flame, BookOpen, CalendarDays } from 'lucide-react';
 import { api } from '../api';
+import StreakCalendar from './StreakCalendar';
 
 const StreakWidget = ({ streakData }) => {
   if (!streakData) return null;
   const { current } = streakData;
 
   return (
-    <div className="bg-gradient-to-br from-orange-400 to-red-500 text-white rounded-lg p-6 shadow-lg text-center">
+    <div className="bg-gradient-to-br from-orange-400 to-red-500 text-white rounded-lg p-6 shadow-lg text-center h-full flex flex-col justify-center">
       <Flame size={48} className="mx-auto mb-2 opacity-80" />
       <div className="text-5xl font-bold">{current}</div>
       <div className="text-xl font-semibold">{current === 1 ? 'Day Streak' : 'Day Streak'}!</div>
@@ -63,7 +64,7 @@ const ReviewHistory = ({ history }) => {
                 )}
               </div>
               <p className="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0">
-                {new Date(item.reviewed_at).toLocaleString()}
+                {new Date(item.reviewed_at + ' UTC').toLocaleString()}
               </p>
             </div>
           ))}
@@ -78,6 +79,7 @@ export default function Statistics() {
   const [streak, setStreak] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' or 'calendar'
 
   useEffect(() => {
     loadStatistics();
@@ -101,7 +103,7 @@ export default function Statistics() {
         api.getGameStatistics(),
         api.getAllGameSessions(),
         api.getStreak(),
-        api.getReviews(),
+        api.getReviews({ limit: 50 }),
       ]);
 
       const totalScore = allSessions.reduce((sum, session) => sum + session.score, 0);
@@ -160,63 +162,88 @@ export default function Statistics() {
         Your Learning Statistics
       </h2>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-1">
-          <StreakWidget streakData={streak} />
-        </div>
-        <div className="md:col-span-2 grid grid-cols-2 gap-4">
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg p-6 shadow-lg">
-            <div className="flex items-center justify-between mb-2"><Target size={24} /><span className="text-3xl font-bold">{stats.totalWords}</span></div>
-            <p className="text-blue-100">Total Words</p>
-          </div>
-          <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-lg p-6 shadow-lg">
-            <div className="flex items-center justify-between mb-2"><BarChart3 size={24} /><span className="text-3xl font-bold">{stats.totalSets}</span></div>
-            <p className="text-purple-100">Study Sets</p>
-          </div>
-          <div className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-lg p-6 shadow-lg">
-            <div className="flex items-center justify-between mb-2"><TrendingUp size={24} /><span className="text-3xl font-bold">{stats.totalGamesPlayed}</span></div>
-            <p className="text-green-100">Games Played</p>
-          </div>
-          <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white rounded-lg p-6 shadow-lg">
-            <div className="flex items-center justify-between mb-2"><Award size={24} /><span className="text-3xl font-bold">{stats.totalScore}</span></div>
-            <p className="text-yellow-100">Total Points</p>
-          </div>
-        </div>
+      {/* Tab Navigation */}
+      <div className="flex border-b border-gray-200 dark:border-gray-600">
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={`px-4 py-2 font-semibold transition-colors ${activeTab === 'overview' ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+        >
+          Overview
+        </button>
+        <button
+          onClick={() => setActiveTab('calendar')}
+          className={`px-4 py-2 font-semibold transition-colors flex items-center gap-2 ${activeTab === 'calendar' ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}
+        >
+          <CalendarDays size={18} />
+          Streak Calendar
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ReviewHistory history={reviews} />
-        
-        {Object.keys(stats.gameStats).length > 0 && (
-          <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold mb-4 dark:text-white">Performance by Game Mode</h3>
-            <div className="space-y-4">
-              {Object.entries(stats.gameStats).map(([mode, data]) => (
-                <div key={mode} className="border-b dark:border-gray-600 pb-4 last:border-b-0">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="font-semibold dark:text-white">{gameModeNames[mode] || mode}</span>
-                    <span className="text-sm text-gray-600 dark:text-gray-400">{data.count} games played</span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400">Best: </span>
-                      <span className="font-bold text-green-600 dark:text-green-400">{data.bestScore}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400">Average: </span>
-                      <span className="font-bold text-blue-600 dark:text-blue-400">{data.averageScore}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600 dark:text-gray-400">Worst: </span>
-                      <span className="font-bold text-gray-600 dark:text-gray-400">{data.worstScore}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+      {activeTab === 'overview' && stats && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-1">
+              <StreakWidget streakData={streak} />
+            </div>
+            <div className="md:col-span-2 grid grid-cols-2 gap-4">
+              <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg p-6 shadow-lg">
+                <div className="flex items-center justify-between mb-2"><Target size={24} /><span className="text-3xl font-bold">{stats.totalWords}</span></div>
+                <p className="text-blue-100">Total Words</p>
+              </div>
+              <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-lg p-6 shadow-lg">
+                <div className="flex items-center justify-between mb-2"><BarChart3 size={24} /><span className="text-3xl font-bold">{stats.totalSets}</span></div>
+                <p className="text-purple-100">Study Sets</p>
+              </div>
+              <div className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-lg p-6 shadow-lg">
+                <div className="flex items-center justify-between mb-2"><TrendingUp size={24} /><span className="text-3xl font-bold">{stats.totalGamesPlayed}</span></div>
+                <p className="text-green-100">Games Played</p>
+              </div>
+              <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white rounded-lg p-6 shadow-lg">
+                <div className="flex items-center justify-between mb-2"><Award size={24} /><span className="text-3xl font-bold">{stats.totalScore}</span></div>
+                <p className="text-yellow-100">Total Points</p>
+              </div>
             </div>
           </div>
-        )}
-      </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <ReviewHistory history={reviews} />
+            
+            {Object.keys(stats.gameStats).length > 0 && (
+              <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-6">
+                <h3 className="text-lg font-semibold mb-4 dark:text-white">Performance by Game Mode</h3>
+                <div className="space-y-4 max-h-96 overflow-y-auto">
+                  {Object.entries(stats.gameStats).map(([mode, data]) => (
+                    <div key={mode} className="border-b dark:border-gray-600 pb-4 last:border-b-0">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="font-semibold dark:text-white">{gameModeNames[mode] || mode}</span>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">{data.count} games played</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-600 dark:text-gray-400">Best: </span>
+                          <span className="font-bold text-green-600 dark:text-green-400">{data.bestScore}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600 dark:text-gray-400">Average: </span>
+                          <span className="font-bold text-blue-600 dark:text-blue-400">{data.averageScore}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600 dark:text-gray-400">Worst: </span>
+                          <span className="font-bold text-gray-600 dark:text-gray-400">{data.worstScore}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'calendar' && (
+        <StreakCalendar />
+      )}
     </div>
   );
 }
