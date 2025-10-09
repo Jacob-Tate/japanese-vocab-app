@@ -1,8 +1,9 @@
 // src/components/FlashcardDrillSentences.jsx
 import React, { useState, useEffect } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Volume2 } from 'lucide-react';
+import { playAudio } from '../utils/audio';
 
-export default function FlashcardDrillSentences({ set, sentences, onExit, startingSide = 'japanese' }) {
+export default function FlashcardDrillSentences({ set, sentences, onExit, startingSide = 'japanese', audioMode = false }) {
   const [cards, setCards] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
@@ -13,6 +14,13 @@ export default function FlashcardDrillSentences({ set, sentences, onExit, starti
     const shuffled = [...setSentences].sort(() => Math.random() - 0.5);
     setCards(shuffled);
   }, []);
+
+  useEffect(() => {
+    // Autoplay audio in audio-only mode when a new card is shown
+    if (audioMode && startingSide === 'japanese' && !showAnswer && cards.length > 0) {
+      playAudio(cards[currentIndex]);
+    }
+  }, [currentIndex, cards, showAnswer, audioMode, startingSide]);
 
   const handleFlip = () => {
     setShowAnswer(!showAnswer);
@@ -59,6 +67,7 @@ export default function FlashcardDrillSentences({ set, sentences, onExit, starti
   const backSide = startingSide === 'japanese' ? currentCard.english : currentCard.japanese;
   const frontLabel = startingSide === 'japanese' ? 'Japanese' : 'English';
   const backLabel = startingSide === 'japanese' ? 'English' : 'Japanese';
+  const isFrontAudioOnly = audioMode && startingSide === 'japanese';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6">
@@ -92,14 +101,31 @@ export default function FlashcardDrillSentences({ set, sentences, onExit, starti
             className="w-full h-64 sm:h-80 bg-white dark:bg-gray-700 rounded-2xl shadow-2xl cursor-pointer flex items-center justify-center p-6 sm:p-8 mb-6 hover:shadow-3xl transition-all"
           >
             <div className="text-center">
-              <p className="text-xl sm:text-2xl md:text-3xl font-semibold mb-4 break-words dark:text-white">
-                {showAnswer ? backSide : frontSide}
-              </p>
-              <p className="text-gray-400 dark:text-gray-500 text-xs sm:text-sm">
+              {isFrontAudioOnly && !showAnswer ? (
+                <div className="flex flex-col items-center justify-center">
+                  <p className="text-gray-400 dark:text-gray-500 text-sm mb-4">Listen and recall</p>
+                  <Volume2 size={64} className="text-blue-500" />
+                </div>
+              ) : (
+                <p className="text-xl sm:text-2xl md:text-3xl font-semibold mb-4 break-words dark:text-white">
+                  {showAnswer ? backSide : frontSide}
+                </p>
+              )}
+              <p className="text-gray-400 dark:text-gray-500 text-xs sm:text-sm mt-2">
                 {showAnswer ? `(${backLabel})` : `(${frontLabel})`} - Click to flip
               </p>
             </div>
           </div>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              playAudio(currentCard);
+            }}
+            className="absolute top-4 right-4 bg-blue-500 text-white rounded-full p-3 hover:bg-blue-600 transition-transform hover:scale-110"
+            title="Play audio"
+          >
+            <Volume2 size={24} />
+          </button>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full sm:w-auto">
