@@ -276,16 +276,7 @@ app.post('/api/game-sessions', async (req, res) => {
       await dbOps.saveGameSession(id, gameMode, score, metadata);
       let activity_happened = false;
 
-      // For flashcard sessions, create a single summary entry in review_history
-      if (gameMode.includes('flashcard') && metadata && metadata.repetitions > 0) {
-          const words = metadata.words || '';
-          const summary = words.length > 100 ? words.substring(0, 97) + '...' : words;
-          const resultText = `Reviewed ${metadata.repetitions} items: ${summary}`;
-          await dbOps.addReviewHistory(id, 'session', gameMode, resultText);
-          activity_happened = true;
-      }
-      
-      // For other games with individual results, log each one
+      // For games with individual per-item results, log each one
       if (metadata && metadata.results && Array.isArray(metadata.results)) {
         for (const result of metadata.results) {
           await dbOps.addReviewHistory(result.itemId, result.itemType, gameMode, result.result);
@@ -293,6 +284,20 @@ app.post('/api/game-sessions', async (req, res) => {
         if (metadata.results.length > 0) {
             activity_happened = true;
         }
+      }
+      // For flashcard sessions, create a single summary entry in review_history
+      else if (gameMode.includes('flashcard') && metadata && metadata.repetitions > 0) {
+          const words = metadata.words || '';
+          const summary = words.length > 100 ? words.substring(0, 97) + '...' : words;
+          const resultText = `Reviewed ${metadata.repetitions} items: ${summary}`;
+          await dbOps.addReviewHistory(id, 'session', gameMode, resultText);
+          activity_happened = true;
+      }
+      // For other games (like matching, speedmatch) that don't have individual results
+      else if (gameMode) {
+          const resultText = `Completed with a score of ${score}.`;
+          await dbOps.addReviewHistory(id, 'session', gameMode, resultText);
+          activity_happened = true;
       }
 
       if (activity_happened) {

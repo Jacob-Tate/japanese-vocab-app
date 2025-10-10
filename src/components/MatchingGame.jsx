@@ -140,8 +140,8 @@ export default function MatchingGame({ set, vocabulary, onExit, repetitions = 3 
 
   const checkMatch = (left, right) => {
     if (left.id === right.id) {
-      const newMatched = [...matched, left.instanceId, right.instanceId];
-      const newGrayedOut = [...grayedOut, left.instanceId, right.instanceId];
+      const newMatched = [...matched, left.instanceId];
+      const newGrayedOut = [...grayedOut, left.instanceId];
       const newScore = score + 1;
       setMatched(newMatched);
       setScore(newScore);
@@ -163,7 +163,7 @@ export default function MatchingGame({ set, vocabulary, onExit, repetitions = 3 
                         
         setGrayedOut(newGrayedOut);
                         
-        if (newGrayedOut.length >= 6) {
+        if (newGrayedOut.length >= 3) {
           const remainingLeft = leftItems.filter(i => !newGrayedOut.includes(i.instanceId));
           const remainingRight = rightItems.filter(i => !newGrayedOut.includes(i.instanceId));
                               
@@ -206,8 +206,8 @@ export default function MatchingGame({ set, vocabulary, onExit, repetitions = 3 
     }
   };
 
-  const remainingWords = gameWords.length - (matched.length / 2);
-  const isGameComplete = matched.length === gameWords.length * 2;
+  const remainingWords = gameWords.length - matched.length;
+  const isGameComplete = matched.length === gameWords.length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6">
