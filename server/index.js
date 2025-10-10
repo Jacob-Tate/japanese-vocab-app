@@ -289,9 +289,18 @@ app.post('/api/game-sessions', async (req, res) => {
       else if (gameMode.includes('flashcard') && metadata && metadata.repetitions > 0) {
           const words = metadata.words || '';
           const summary = words.length > 100 ? words.substring(0, 97) + '...' : words;
-          const resultText = `Reviewed ${metadata.repetitions} items: ${summary}`;
+          let resultText;
+          if (metadata.completed) {
+            resultText = `Completed flashcard session (${metadata.repetitions} cards): ${summary}`;
+          } else {
+            resultText = `Reviewed ${metadata.repetitions} of ${metadata.totalCards} cards: ${summary}`;
+          }
           await dbOps.addReviewHistory(id, 'session', gameMode, resultText);
-          activity_happened = true;
+          
+          // Only count completed flashcard sessions for the streak
+          if (metadata.completed) {
+            activity_happened = true;
+          }
       }
       // For other games (like matching, speedmatch) that don't have individual results
       else if (gameMode) {

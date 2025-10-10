@@ -1,6 +1,6 @@
 // src/components/FlashcardDrill.jsx
 import React, { useState, useEffect } from 'react';
-import { RotateCcw, Volume2 } from 'lucide-react';
+import { RotateCcw, Volume2, CheckCircle } from 'lucide-react';
 import { playAudio } from '../utils/audio';
 import { api } from '../api';
 
@@ -8,20 +8,60 @@ export default function FlashcardDrill({ set, vocabulary, onExit, startingSide =
   const [cards, setCards] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
-  const [studied, setStudied] = useState(0);
   const [viewedCardIds, setViewedCardIds] = useState(new Set());
 
   useEffect(() => {
     const words = vocabulary.filter(v => set.wordIds.includes(v.id));
     const shuffled = [...words].sort(() => Math.random() - 0.5);
     setCards(shuffled);
-  }, []);
+  }, [set.id, vocabulary]);
 
   useEffect(() => {
     if (cards.length > 0) {
       setViewedCardIds(prev => new Set(prev).add(cards[currentIndex].id));
     }
   }, [currentIndex, cards]);
+
+  const saveSession = async (isCompleted = false) => {
+    if (viewedCardIds.size === 0) return;
+
+    const reviewedWords = Array.from(viewedCardIds).map(id => {
+      return vocabulary.find(v => v.id === id)?.japanese;
+    }).filter(Boolean);
+    
+    const payload = {
+      gameMode: 'flashcard',
+      score: 0, // Flashcards don't have a score
+      metadata: {
+        repetitions: viewedCardIds.size,
+        totalCards: cards.length,
+        completed: isCompleted,
+        words: reviewedWords.join(', '),
+      },
+    };
+
+    if (set.sourceSetIds) { // For combined sets
+      payload.setIds = set.sourceSetIds;
+    } else {
+      payload.setId = set.id;
+    }
+    
+    try {
+      await api.saveGameSession(payload);
+    } catch (error) {
+      console.error('Failed to save flashcard session:', error);
+    }
+  };
+
+  const handleExit = async () => {
+    await saveSession(false); // Save as incomplete
+    onExit();
+  };
+  
+  const handleFinish = async () => {
+    await saveSession(true); // Save as complete
+    onExit();
+  };
 
   const handleFlip = () => {
     setShowAnswer(!showAnswer);
@@ -31,9 +71,6 @@ export default function FlashcardDrill({ set, vocabulary, onExit, startingSide =
     if (currentIndex < cards.length - 1) {
       setCurrentIndex(currentIndex + 1);
       setShowAnswer(false);
-      if (!showAnswer) {
-        setStudied(studied + 1);
-      }
     }
   };
 
@@ -51,37 +88,7 @@ export default function FlashcardDrill({ set, vocabulary, onExit, startingSide =
     setShowAnswer(false);
   };
 
-  const handleExit = async () => {
-    if (viewedCardIds.size > 0) {
-      const reviewedWords = Array.from(viewedCardIds).map(id => {
-        return vocabulary.find(v => v.id === id)?.japanese;
-      }).filter(Boolean);
-      
-      const payload = {
-        gameMode: 'flashcard',
-        score: 0,
-        metadata: {
-          repetitions: viewedCardIds.size,
-          words: reviewedWords.join(', '),
-        },
-      };
-
-      if (set.sourceSetIds) { // For combined sets
-        payload.setIds = set.sourceSetIds;
-      } else {
-        payload.setId = set.id;
-      }
-      
-      try {
-        await api.saveGameSession(payload);
-      } catch (error) {
-        console.error('Failed to save flashcard session:', error);
-      }
-    }
-    onExit();
-  };
-
-  if (cards.length === 0) return <div className="dark:text-white">Loading...</div>;
+  if (cards.length === 0) return <div className="dark:text-white p-6 text-center">This set has no words to practice.</div>;
 
   const currentCard = cards[currentIndex];
   const progress = ((currentIndex + 1) / cards.length) * 100;
@@ -106,7 +113,7 @@ export default function FlashcardDrill({ set, vocabulary, onExit, startingSide =
       <div className="mb-4">
         <div className="flex justify-between text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-2">
           <span>Card {currentIndex + 1} of {cards.length}</span>
-          <span>Studied: {studied}</span>
+          <span>Viewed: {viewedCardIds.size}</span>
         </div>
         <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
           <div
@@ -157,13 +164,21 @@ export default function FlashcardDrill({ set, vocabulary, onExit, startingSide =
           >
             <RotateCcw size={20} /> Shuffle
           </button>
-          <button
-            onClick={handleNext}
-            disabled={currentIndex === cards.length - 1}
-            className="px-4 sm:px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Next
-          </button>
+          {currentIndex === cards.length - 1 ? (
+            <button
+              onClick={handleFinish}
+              className="px-4 sm:px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 flex items-center justify-center gap-2"
+            >
+              <CheckCircle size={20} /> Finish Session
+            </button>
+          ) : (
+            <button
+              onClick={handleNext}
+              className="px-4 sm:px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+            >
+              Next
+            </button>
+          )}
         </div>
       </div>
     </div>
