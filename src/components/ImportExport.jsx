@@ -3,17 +3,18 @@ import React, { useState } from 'react';
 import { Download, Upload, FileText, AlertCircle, RotateCcw, AlertTriangle } from 'lucide-react';
 import { api } from '../api';
 
-export default function ImportExport({ onRefresh }) {
+export default function ImportExport({ sets, onRefresh }) {
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
   const [resetting, setResetting] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
+  const [selectedSetId, setSelectedSetId] = useState('');
 
   const exportVocabulary = async () => {
     try {
       const vocab = await api.getAllVocab();
       const sentences = await api.getAllSentences();
-      const sets = await api.getAllSets();
+      const setsData = await api.getAllSets();
 
       const vocabCsv = [
 'Type,Japanese,English',
@@ -27,7 +28,7 @@ export default function ImportExport({ onRefresh }) {
       vocabLink.download = `japanese-vocab-${new Date().toISOString().split('T')[0]}.csv`;
       vocabLink.click();
 
-      const setsJson = JSON.stringify({ sets, vocab, sentences }, null, 2);
+      const setsJson = JSON.stringify({ sets: setsData, vocab, sentences }, null, 2);
       const setsBlob = new Blob([setsJson], { type: 'application/json' });
       const setsUrl = URL.createObjectURL(setsBlob);
       const setsLink = document.createElement('a');
@@ -52,7 +53,7 @@ export default function ImportExport({ onRefresh }) {
       const text = await file.text();
             
       if (file.name.endsWith('.csv')) {
-        await importFromCSV(text);
+        await importFromCSV(text, selectedSetId ? [parseInt(selectedSetId, 10)] : []);
       } else if (file.name.endsWith('.json')) {
         await importFromJSON(text);
       } else {
@@ -69,7 +70,7 @@ export default function ImportExport({ onRefresh }) {
     }
   };
 
-  const importFromCSV = async (csvText) => {
+  const importFromCSV = async (csvText, targetSetIds) => {
     const lines = csvText.split('\n').slice(1);
     let wordCount = 0;
     let sentenceCount = 0;
@@ -88,10 +89,10 @@ export default function ImportExport({ onRefresh }) {
       const [, type, japanese, english] = match;
       try {
         if (type === 'word') {
-          await api.addVocab({ japanese: japanese.trim(), english: english.trim() });
+          await api.addVocab({ japanese: japanese.trim(), english: english.trim(), setIds: targetSetIds });
           wordCount++;
         } else if (type === 'sentence') {
-          await api.addSentence({ japanese: japanese.trim(), english: english.trim() });
+          await api.addSentence({ japanese: japanese.trim(), english: english.trim(), setIds: targetSetIds });
           sentenceCount++;
         }
       } catch (error) {
@@ -100,6 +101,10 @@ export default function ImportExport({ onRefresh }) {
     }
     const skippedCount = processedLines - (wordCount + sentenceCount);
     let message = `Imported ${wordCount} words and ${sentenceCount} sentences from CSV.`;
+    if (targetSetIds && targetSetIds.length > 0) {
+        const setName = sets.find(s => s.id === targetSetIds[0])?.name;
+        if(setName) message += ` into set "${setName}".`;
+    }
     if(skippedCount > 0){
         message += ` ${skippedCount} items were skipped (duplicates or errors).`;
     }
@@ -177,6 +182,24 @@ export default function ImportExport({ onRefresh }) {
   return (
     <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
       <h3 className="text-base sm:text-lg font-semibold mb-4 dark:text-white">Import / Export Data</h3>
+      
+      <div className="mb-4">
+        <label htmlFor="import-set-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Import directly into set (CSV only):
+        </label>
+        <select
+          id="import-set-select"
+          value={selectedSetId}
+          onChange={(e) => setSelectedSetId(e.target.value)}
+          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+        >
+          <option value="">Don't add to a set</option>
+          {sets && sets.map(set => (
+            <option key={set.id} value={set.id}>{set.name}</option>
+          ))}
+        </select>
+      </div>
+      
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <button onClick={exportVocabulary} className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"><Download size={20} />Export All Data</button>
         <label className="flex items-center justify-center gap-2 px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors cursor-pointer"><Upload size={20} />{importing ? 'Importing...' : 'Import Data'}<input type="file" accept=".csv,.json" onChange={handleFileUpload} disabled={importing} className="hidden"/></label>

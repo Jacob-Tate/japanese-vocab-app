@@ -178,7 +178,7 @@ export default function JapaneseVocabApp() {
             )}
             {currentView === 'dictionary' && <Dictionary />}
             {currentView === 'stats' && <Statistics />}
-            {currentView === 'import' && <ImportExport onRefresh={loadData} />}
+            {currentView === 'import' && <ImportExport sets={sets} onRefresh={loadData} />}
           </div>
         </div>
       </div>
