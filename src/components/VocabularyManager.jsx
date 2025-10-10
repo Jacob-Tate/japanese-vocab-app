@@ -1,6 +1,6 @@
 // src/components/VocabularyManager.jsx
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Plus, X, Check, Search, AlertTriangle, Clock, RotateCcw, Layers, BookOpen, Loader2, Star, Upload, Volume2, Trash2, ArrowUp, ArrowDown, Edit, Save } from 'lucide-react';
+import { Plus, X, Check, Search, AlertTriangle, Clock, RotateCcw, Layers, BookOpen, Loader2, Star, Upload, Volume2, Trash2, ArrowUp, ArrowDown, Edit, Save, Filter } from 'lucide-react';
 import { api } from '../api';
 import { playAudio } from '../utils/audio';
 
@@ -64,6 +64,9 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
   const [editingWord, setEditingWord] = useState(null); // { id, japanese, english }
   const [editError, setEditError] = useState(null);
   const editingJapaneseInputRef = useRef(null);
+  
+  const [filterSet, setFilterSet] = useState('all');
+  const [filterSrs, setFilterSrs] = useState('all');
 
   // State for Definition Modal
   const [defModalOpen, setDefModalOpen] = useState(false);
@@ -312,13 +315,34 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
   const handleEditingInputChange = (e) => {
     setEditingWord({ ...editingWord, [e.target.name]: e.target.value });
   };
-
-  const filteredVocabulary = useMemo(() => 
-    vocabulary.filter(word =>
-      word.japanese.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      word.english.toLowerCase().includes(searchTerm.toLowerCase())
-    ), [vocabulary, searchTerm]);
   
+  const filteredVocabulary = useMemo(() => {
+    const selectedSet = sets.find(s => s.id === parseInt(filterSet, 10));
+    const wordIdsInSet = selectedSet ? new Set(selectedSet.wordIds) : null;
+    const now = new Date();
+
+    return vocabulary.filter(word => {
+      // Search term filter
+      const matchesSearch = word.japanese.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            word.english.toLowerCase().includes(searchTerm.toLowerCase());
+
+      // Set filter
+      const matchesSet = !wordIdsInSet || wordIdsInSet.has(word.id);
+
+      // SRS status filter
+      let matchesSrs = true;
+      if (filterSrs === 'new') {
+        matchesSrs = !word.due_date;
+      } else if (filterSrs === 'due') {
+        matchesSrs = word.due_date && new Date(word.due_date) <= now;
+      } else if (filterSrs === 'learning') {
+        matchesSrs = word.due_date && new Date(word.due_date) > now;
+      }
+      
+      return matchesSearch && matchesSet && matchesSrs;
+    });
+  }, [vocabulary, searchTerm, filterSet, filterSrs, sets]);
+
   const requestSort = (key) => {
     let direction = 'ascending';
     if (sortConfig.key === key && sortConfig.direction === 'ascending') {
@@ -558,10 +582,24 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
       </form>
 
       <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-4 sm:p-6">
-        <h3 className="text-base sm:text-lg font-semibold mb-4 dark:text-white">All Vocabulary ({vocabulary.length} words)</h3>
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-3 text-gray-400 dark:text-gray-500" size={20} />
-          <input type="text" placeholder="Search vocabulary..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base dark:bg-gray-600 dark:text-white dark:placeholder-gray-400"/>
+        <h3 className="text-base sm:text-lg font-semibold mb-4 dark:text-white">All Vocabulary ({sortedAndFilteredVocabulary.length} words)</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={20} />
+              <input type="text" placeholder="Search vocabulary..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm sm:text-base dark:bg-gray-600 dark:text-white dark:placeholder-gray-400"/>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+                <select value={filterSet} onChange={e => setFilterSet(e.target.value)} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-600 dark:text-white">
+                    <option value="all">All Sets</option>
+                    {sets.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+                <select value={filterSrs} onChange={e => setFilterSrs(e.target.value)} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm dark:bg-gray-600 dark:text-white">
+                    <option value="all">All SRS Statuses</option>
+                    <option value="new">New</option>
+                    <option value="due">Due</option>
+                    <option value="learning">Learning</option>
+                </select>
+            </div>
         </div>
         
         {/* Mobile Sort Controls */}
