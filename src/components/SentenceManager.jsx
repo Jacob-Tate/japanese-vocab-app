@@ -1,6 +1,6 @@
 // src/components/SentenceManager.jsx
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Plus, X, Check, Search, AlertTriangle, TextSelect, Layers, ChevronDown } from 'lucide-react';
+import { Plus, X, Check, Search, AlertTriangle, TextSelect, Layers, ChevronDown, Edit, Save } from 'lucide-react';
 import { api } from '../api';
 import ClozeGeneratorModal from './ClozeGeneratorModal';
 
@@ -22,17 +22,29 @@ export default function SentenceManager({ sentences, sets, onRefresh }) {
   const [sentenceSets, setSentenceSets] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
 
+  const [editingSentence, setEditingSentence] = useState(null);
+  const [editError, setEditError] = useState(null);
+  const editingJapaneseInputRef = useRef(null);
+
   useEffect(() => {
     const inputElement = japaneseInputRef.current;
     if (inputElement && window.wanakana) {
       window.wanakana.bind(inputElement, { IMEMode: true });
+      return () => {
+        if (inputElement && window.wanakana) window.wanakana.unbind(inputElement);
+      };
     }
-    return () => {
-      if (inputElement && window.wanakana) {
-        window.wanakana.unbind(inputElement);
-      }
-    };
   }, []);
+
+  useEffect(() => {
+    const editInputElement = editingJapaneseInputRef.current;
+    if (editInputElement && window.wanakana) {
+      window.wanakana.bind(editInputElement, { IMEMode: true });
+      return () => {
+        if (editInputElement && window.wanakana) window.wanakana.unbind(editInputElement);
+      };
+    }
+  }, [editingSentence]);
 
   const sentenceToSetsMap = useMemo(() => {
     const map = new Map();
@@ -54,7 +66,8 @@ export default function SentenceManager({ sentences, sets, onRefresh }) {
     setIsClozeModalOpen(true);
   };
 
-  const handleAdd = async () => {
+  const handleAdd = async (e) => {
+    e.preventDefault();
     if (japanese.trim() && english.trim()) {
       setAddError(null);
       try {
@@ -99,7 +112,6 @@ export default function SentenceManager({ sentences, sets, onRefresh }) {
     try {
       const currentSets = await api.getSetsContainingSentence(sentence.id);
       setSentenceSets(currentSets.map(s => s.id));
-      console.log(sentenceSets);
     } catch (error) {
       console.error("Failed to fetch sets for sentence", error);
       setSentenceSets([]);
@@ -136,6 +148,33 @@ export default function SentenceManager({ sentences, sets, onRefresh }) {
     setNewSentenceSets(prev => 
       prev.includes(setId) ? prev.filter(id => id !== setId) : [...prev, setId]
     );
+  };
+
+  const handleEditSentence = (sentence) => {
+    setEditingSentence({ ...sentence });
+    setEditError(null);
+  };
+
+  const handleCancelEditSentence = () => {
+    setEditingSentence(null);
+    setEditError(null);
+  };
+
+  const handleUpdateSentence = async (e) => {
+    e.preventDefault();
+    if (!editingSentence || !editingSentence.japanese.trim() || !editingSentence.english.trim()) return;
+    try {
+      await api.updateSentence(editingSentence.id, { japanese: editingSentence.japanese, english: editingSentence.english });
+      setEditingSentence(null);
+      setEditError(null);
+      onRefresh();
+    } catch (error) {
+      setEditError(error.message);
+    }
+  };
+
+  const handleEditingSentenceChange = (e) => {
+    setEditingSentence({ ...editingSentence, [e.target.name]: e.target.value });
   };
 
   const filteredSentences = sentences.filter(s =>
@@ -186,7 +225,7 @@ export default function SentenceManager({ sentences, sets, onRefresh }) {
         </div>
       )}
             
-      <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+      <form onSubmit={handleAdd} className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
         <h3 className="text-base sm:text-lg font-semibold mb-4 dark:text-white">Add New Sentence</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <input
@@ -194,7 +233,7 @@ export default function SentenceManager({ sentences, sets, onRefresh }) {
             type="text"
             placeholder="Japanese Sentence"
             value={japanese}
-            onChange={(e) => setJapanese(e.target.value)}
+            onInput={(e) => setJapanese(e.target.value)}
             className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white dark:placeholder-gray-400"
           />
           <input
@@ -206,16 +245,16 @@ export default function SentenceManager({ sentences, sets, onRefresh }) {
           />
         </div>
         <div className="mb-4">
-            <button onClick={() => setIsSetSelectionOpen(!isSetSelectionOpen)} className="flex items-center justify-between w-full text-left text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <button type="button" onClick={() => setIsSetSelectionOpen(!isSetSelectionOpen)} className="flex items-center justify-between w-full text-left text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 <span>Add to sets (optional)</span>
                 <ChevronDown className={`transition-transform ${isSetSelectionOpen ? 'rotate-180' : ''}`} />
             </button>
             {isSetSelectionOpen && (
               <div className="border dark:border-gray-600 rounded-lg p-2 bg-gray-50 dark:bg-gray-800">
-                <form onSubmit={handleCreateNewSet} className="flex gap-2 p-2 dark:border-gray-700">
+                <div className="flex gap-2 p-2 dark:border-gray-700">
                     <input type="text" value={newSetName} onChange={(e) => setNewSetName(e.target.value)} placeholder="Or create a new set..." className="flex-grow px-3 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"/>
-                    <button type="submit" className="px-3 py-1 bg-green-500 text-white text-sm rounded-md hover:bg-green-600 disabled:bg-gray-400" disabled={!newSetName.trim()}>Create</button>
-                </form>
+                    <button type="button" onClick={handleCreateNewSet} className="px-3 py-1 bg-green-500 text-white text-sm rounded-md hover:bg-green-600 disabled:bg-gray-400" disabled={!newSetName.trim()}>Create</button>
+                </div>
                 <div className="max-h-32 overflow-y-auto space-y-1 mb-2">
                     {sets.length > 0 ? sets.map(set => (
                         <label key={set.id} className="flex items-center gap-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer rounded">
@@ -227,12 +266,12 @@ export default function SentenceManager({ sentences, sets, onRefresh }) {
               </div>
             )}
         </div>
-        <button onClick={handleAdd} className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 flex items-center gap-2">
+        <button type="submit" className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 flex items-center gap-2">
           <Plus size={20} /> Add Sentence
         </button>
         {showSuccess && <div className="mt-4 text-green-600 dark:text-green-400 flex items-center gap-2"><Check size={20} /> Sentence added successfully!</div>}
         {addError && <div className="mt-4 text-red-600 dark:text-red-400 flex items-center gap-2"><AlertTriangle size={20} /> {addError}</div>}
-      </div>
+      </form>
 
       <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-4 sm:p-6">
         <h3 className="text-base sm:text-lg font-semibold mb-4 dark:text-white">All Sentences ({sentences.length})</h3>
@@ -255,6 +294,20 @@ export default function SentenceManager({ sentences, sets, onRefresh }) {
           ) : (
             filteredSentences.map((sentence) => {
               const containingSets = sentenceToSetsMap.get(sentence.id) || [];
+              const isEditing = editingSentence && editingSentence.id === sentence.id;
+              if (isEditing) {
+                return (
+                  <form key={sentence.id} onSubmit={handleUpdateSentence} className="bg-blue-50 dark:bg-blue-900/50 rounded-lg p-4 space-y-3">
+                    <textarea ref={editingJapaneseInputRef} name="japanese" value={editingSentence.japanese} onInput={handleEditingSentenceChange} className="w-full px-2 py-1 border rounded dark:bg-gray-800 dark:text-white" rows="2" />
+                    <textarea name="english" value={editingSentence.english} onChange={handleEditingSentenceChange} className="w-full px-2 py-1 border rounded dark:bg-gray-800 dark:text-white" rows="2" />
+                    {editError && <div className="text-red-500 text-xs">{editError}</div>}
+                    <div className="flex items-center gap-2">
+                      <button type="submit" className="text-green-500 hover:text-green-700 p-2" title="Save"><Save size={20} /></button>
+                      <button type="button" onClick={handleCancelEditSentence} className="text-red-500 hover:text-red-700 p-2" title="Cancel"><X size={20} /></button>
+                    </div>
+                  </form>
+                );
+              }
               return (
               <div key={sentence.id} className="bg-gray-50 dark:bg-gray-600 rounded-lg p-4 flex justify-between items-start">
                 <div>
@@ -270,6 +323,9 @@ export default function SentenceManager({ sentences, sets, onRefresh }) {
                   )}
                 </div>
                 <div className="flex items-center ml-2 flex-shrink-0">
+                  <button onClick={() => handleEditSentence(sentence)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2" title="Edit sentence">
+                    <Edit size={20} />
+                  </button>
                    <button onClick={() => handleOpenSetsModal(sentence)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2" title="Manage sets">
                     <Layers size={20} />
                   </button>

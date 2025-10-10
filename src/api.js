@@ -14,6 +14,19 @@ export const api = {
     }
     return data;
   },
+
+  async updateVocab(id, vocab) {
+    const response = await fetch(`${API_URL}/vocabulary/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(vocab)
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to update vocabulary word.');
+    }
+    return data;
+  },
     
   async getAllVocab() {
     const response = await fetch(`${API_URL}/vocabulary`);
@@ -70,6 +83,19 @@ export const api = {
     const data = await response.json();
     if (!response.ok) {
       throw new Error(data.error || 'Failed to add sentence.');
+    }
+    return data;
+  },
+
+  async updateSentence(id, sentence) {
+    const response = await fetch(`${API_URL}/sentences/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(sentence)
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to update sentence.');
     }
     return data;
   },

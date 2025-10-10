@@ -71,6 +71,20 @@ app.get('/api/vocabulary', async (req, res) => {
   }
 });
 
+app.put('/api/vocabulary/:id', async (req, res) => {
+  try {
+    const { japanese, english } = req.body;
+    await dbOps.updateVocab(req.params.id, japanese, english);
+    res.json({ success: true });
+  } catch (error) {
+    if (error.message.includes('already exists')) {
+      res.status(409).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: error.message });
+    }
+  }
+});
+
 app.delete('/api/vocabulary/:id', async (req, res) => {
   try {
     await dbOps.deleteVocab(req.params.id);
@@ -160,6 +174,20 @@ app.get('/api/sentences', async (req, res) => {
     res.json(sentences);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/sentences/:id', async (req, res) => {
+  try {
+    const { japanese, english } = req.body;
+    await dbOps.updateSentence(req.params.id, japanese, english);
+    res.json({ success: true });
+  } catch (error) {
+    if (error.message.includes('already exists')) {
+      res.status(409).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: error.message });
+    }
   }
 });
 

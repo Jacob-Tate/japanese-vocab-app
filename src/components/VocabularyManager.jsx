@@ -1,6 +1,6 @@
 // src/components/VocabularyManager.jsx
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Plus, X, Check, Search, AlertTriangle, Clock, RotateCcw, Layers, BookOpen, Loader2, Star, Upload, Volume2, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, X, Check, Search, AlertTriangle, Clock, RotateCcw, Layers, BookOpen, Loader2, Star, Upload, Volume2, Trash2, ArrowUp, ArrowDown, Edit, Save } from 'lucide-react';
 import { api } from '../api';
 import { playAudio } from '../utils/audio';
 
@@ -61,6 +61,10 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
   const [isSetListVisible, setIsSetListVisible] = useState(false);
   const [isAddingWord, setIsAddingWord] = useState(false);
 
+  const [editingWord, setEditingWord] = useState(null); // { id, japanese, english }
+  const [editError, setEditError] = useState(null);
+  const editingJapaneseInputRef = useRef(null);
+
   // State for Definition Modal
   const [defModalOpen, setDefModalOpen] = useState(false);
   const [defWord, setDefWord] = useState(null);
@@ -80,6 +84,18 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
     };
   }, []);
 
+  useEffect(() => {
+    const editInputElement = editingJapaneseInputRef.current;
+    if (editInputElement && window.wanakana) {
+      window.wanakana.bind(editInputElement);
+    }
+    return () => {
+      if (editInputElement && window.wanakana) {
+        window.wanakana.unbind(editInputElement);
+      }
+    };
+  }, [editingWord]);
+
   const handleAudioFileSelect = (event) => {
     const file = event.target.files[0];
     if (file && file.type === 'audio/mpeg') {
@@ -90,7 +106,8 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
     event.target.value = ''; // Reset file input to allow re-selection of the same file
   };
 
-  const handleAdd = async () => {
+  const handleAdd = async (e) => {
+    e.preventDefault();
     if (japanese.trim() && english.trim()) {
       setIsAddingWord(true);
       setAddError(null);
@@ -269,6 +286,33 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
     }
   };
 
+  const handleEdit = (word) => {
+    setEditingWord({ ...word });
+    setEditError(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingWord(null);
+    setEditError(null);
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    if (!editingWord || !editingWord.japanese.trim() || !editingWord.english.trim()) return;
+    try {
+      await api.updateVocab(editingWord.id, { japanese: editingWord.japanese, english: editingWord.english });
+      setEditingWord(null);
+      setEditError(null);
+      onRefresh();
+    } catch (error) {
+      setEditError(error.message);
+    }
+  };
+
+  const handleEditingInputChange = (e) => {
+    setEditingWord({ ...editingWord, [e.target.name]: e.target.value });
+  };
+
   const filteredVocabulary = useMemo(() => 
     vocabulary.filter(word =>
       word.japanese.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -422,10 +466,10 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
         </div>
       )}
             
-      <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
+      <form onSubmit={handleAdd} className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
         <h3 className="text-base sm:text-lg font-semibold mb-4 dark:text-white">Add New Word</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <input ref={japaneseInputRef} type="text" placeholder="Japanese (e.g., type 'sushi')" value={japanese} onChange={(e) => setJapanese(e.target.value)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white dark:placeholder-gray-400"/>
+          <input ref={japaneseInputRef} type="text" placeholder="Japanese (e.g., type 'sushi')" value={japanese} onInput={(e) => setJapanese(e.target.value)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white dark:placeholder-gray-400"/>
           <input type="text" placeholder="English" value={english} onChange={(e) => setEnglish(e.target.value)} className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:text-white dark:placeholder-gray-400"/>
         </div>
         <div className="mb-4">
@@ -447,7 +491,7 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
             {newWordAudioFile && (
               <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                 <span>{newWordAudioFile.name}</span>
-                <button onClick={() => setNewWordAudioFile(null)} className="p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900 text-red-500">
+                <button type="button" onClick={() => setNewWordAudioFile(null)} className="p-1 rounded-full hover:bg-red-100 dark:hover:bg-red-900 text-red-500">
                   <X size={16} />
                 </button>
               </div>
@@ -457,6 +501,7 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
 
         <div className="mb-4">
           <button 
+            type="button"
             onClick={() => setIsSetListVisible(!isSetListVisible)}
             className="w-full flex justify-between items-center text-left p-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
           >
@@ -477,6 +522,7 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
                       className="flex-grow px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                   />
                   <button 
+                      type="button"
                       onClick={handleCreateNewSet}
                       disabled={!newSetName.trim()}
                       className="p-1.5 bg-green-500 text-white rounded-md hover:bg-green-600 disabled:bg-gray-400"
@@ -503,13 +549,13 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
             </div>
           )}
         </div>
-        <button onClick={handleAdd} disabled={isAddingWord} className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 flex items-center gap-2 disabled:bg-blue-300 dark:disabled:bg-blue-800">
+        <button type="submit" disabled={isAddingWord} className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 flex items-center gap-2 disabled:bg-blue-300 dark:disabled:bg-blue-800">
             {isAddingWord ? <Loader2 className="animate-spin" size={20}/> : <Plus size={20} />} 
             {isAddingWord ? 'Adding...' : 'Add Word'}
         </button>
         {showSuccess && (<div className="mt-4 text-green-600 dark:text-green-400 flex items-center gap-2"><Check size={20} /> Word added successfully!</div>)}
         {addError && (<div className="mt-4 text-red-600 dark:text-red-400 flex items-center gap-2"><AlertTriangle size={20} /> {addError}</div>)}
-      </div>
+      </form>
 
       <div className="bg-white dark:bg-gray-700 rounded-lg shadow-md p-4 sm:p-6">
         <h3 className="text-base sm:text-lg font-semibold mb-4 dark:text-white">All Vocabulary ({vocabulary.length} words)</h3>
@@ -562,21 +608,32 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
               ) : (
                 sortedAndFilteredVocabulary.map((word) => {
                   const srsStatus = formatDueDate(word.due_date);
+                  const isEditing = editingWord && editingWord.id === word.id;
+                  if (isEditing) {
+                    return (
+                      <tr key={word.id} className="bg-blue-50 dark:bg-blue-900/50">
+                        <td className="px-4 py-3"><input ref={editingJapaneseInputRef} name="japanese" value={editingWord.japanese} onInput={handleEditingInputChange} className="w-full px-2 py-1 border rounded dark:bg-gray-800 dark:text-white" /></td>
+                        <td className="px-4 py-3"><input name="english" value={editingWord.english} onChange={handleEditingInputChange} className="w-full px-2 py-1 border rounded dark:bg-gray-800 dark:text-white" /></td>
+                        <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-semibold ${srsStatus.color}`}>{srsStatus.text}</span></td>
+                        <td className="px-4 py-3 text-center">
+                          <form onSubmit={handleUpdate} className="flex justify-center items-center gap-2">
+                            <button type="submit" className="text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300" title="Save"><Save size={18} /></button>
+                            <button type="button" onClick={handleCancelEdit} className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" title="Cancel"><X size={20} /></button>
+                          </form>
+                          {editError && <div className="text-red-500 text-xs text-center col-span-full">{editError}</div>}
+                        </td>
+                      </tr>
+                    );
+                  }
                   return (
                     <tr key={word.id} className="border-t dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600">
                       <td className="px-4 py-3 font-medium dark:text-gray-200">{word.japanese}</td>
                       <td className="px-4 py-3 dark:text-gray-300">{word.english}</td>
                       <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-semibold ${srsStatus.color}`}>{srsStatus.text}</span></td>
                       <td className="px-4 py-3 text-center">
-                        <div className="flex justify-center items-center gap-2">
-                           {word.audio_filename ? (
-                            <>
-                                <button onClick={() => playAudio(word)} className="text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300" title="Play custom audio"><Volume2 size={18} /></button>
-                                <button onClick={() => handleDeleteAudio(word.id)} className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" title="Delete custom audio"><Trash2 size={18} /></button>
-                            </>
-                            ) : (
-                                <button onClick={() => handleUploadClick(word.id)} className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" title="Upload MP3"><Upload size={18} /></button>
-                            )}
+                        <div className="flex justify-center items-center gap-1">
+                          <button onClick={() => handleEdit(word)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" title="Edit word"><Edit size={18} /></button>
+                          {word.audio_filename ? (<><button onClick={() => playAudio(word)} className="text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300" title="Play custom audio"><Volume2 size={18} /></button><button onClick={() => handleDeleteAudio(word.id)} className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300" title="Delete custom audio"><Trash2 size={18} /></button></>) : (<button onClick={() => handleUploadClick(word.id)} className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" title="Upload MP3"><Upload size={18} /></button>)}
                           <button onClick={() => handleShowDefinition(word)} className="text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300" title="See definition"><BookOpen size={18} /></button>
                           <button onClick={() => handleOpenSetsModal(word)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200" title="Manage sets"><Layers size={18} /></button>
                           {word.due_date && <button onClick={() => handleResetSrs(word.id, word.japanese)} className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" title="Reset SRS progress for this word"><RotateCcw size={18} /></button>}
@@ -597,6 +654,20 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
           ) : (
             sortedAndFilteredVocabulary.map((word) => {
               const srsStatus = formatDueDate(word.due_date);
+              const isEditing = editingWord && editingWord.id === word.id;
+              if(isEditing) {
+                return (
+                  <form key={word.id} onSubmit={handleUpdate} className="bg-blue-50 dark:bg-blue-900/50 rounded-lg p-4 space-y-3">
+                    <input ref={editingJapaneseInputRef} name="japanese" value={editingWord.japanese} onInput={handleEditingInputChange} className="w-full px-2 py-1 border rounded dark:bg-gray-800 dark:text-white" />
+                    <input name="english" value={editingWord.english} onChange={handleEditingInputChange} className="w-full px-2 py-1 border rounded dark:bg-gray-800 dark:text-white" />
+                    {editError && <div className="text-red-500 text-xs">{editError}</div>}
+                    <div className="flex items-center gap-2">
+                      <button type="submit" className="text-green-500 hover:text-green-700 p-2"><Save size={20} /></button>
+                      <button type="button" onClick={handleCancelEdit} className="text-red-500 hover:text-red-700 p-2"><X size={20} /></button>
+                    </div>
+                  </form>
+                )
+              }
               return (
                 <div key={word.id} className="bg-gray-50 dark:bg-gray-600 rounded-lg p-4 flex justify-between items-start">
                   <div className="flex-1">
@@ -605,17 +676,8 @@ export default function VocabularyManager({ vocabulary, sets, onRefresh }) {
                     <div className="flex items-center gap-2"><Clock size={14} className="text-gray-500 dark:text-gray-400"/><span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${srsStatus.color}`}>{srsStatus.text}</span></div>
                   </div>
                   <div className="flex flex-col items-center gap-2">
-                    {word.audio_filename ? (
-                        <>
-                            <button onClick={() => playAudio(word)} className="text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 p-2" title="Play custom audio"><Volume2 size={20} /></button>
-                            <button onClick={() => handleDeleteAudio(word.id)} className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-2" title="Delete custom audio"><Trash2 size={20} /></button>
-                        </>
-                    ) : (
-                        <button onClick={() => handleUploadClick(word.id)} className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 p-2" title="Upload MP3"><Upload size={20} /></button>
-                    )}
-                    <button onClick={() => handleShowDefinition(word)} className="text-green-500 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 p-2" title="See definition"><BookOpen size={20} /></button>
-                    <button onClick={() => handleOpenSetsModal(word)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2" title="Manage sets"><Layers size={20} /></button>
-                    {word.due_date && <button onClick={() => handleResetSrs(word.id, word.japanese)} className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 p-2" title="Reset SRS progress for this word"><RotateCcw size={20} /></button>}
+                    <button onClick={() => handleEdit(word)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-2" title="Edit word"><Edit size={20} /></button>
+                    {word.audio_filename ? (<button onClick={() => playAudio(word)} className="text-green-500 p-2" title="Play custom audio"><Volume2 size={20} /></button>) : (<button onClick={() => handleUploadClick(word.id)} className="text-blue-500 p-2" title="Upload MP3"><Upload size={20} /></button>)}
                     <button onClick={() => handleDelete(word.id)} className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 p-2" title="Delete word"><X size={20} /></button>
                   </div>
                 </div>

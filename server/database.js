@@ -256,6 +256,27 @@ export const dbOps = {
       });
     });
   },
+  updateVocab(id, japanese, english) {
+    return new Promise((resolve, reject) => {
+      const trimmedJapanese = japanese.trim();
+      const trimmedEnglish = english.trim();
+      if (!trimmedJapanese || !trimmedEnglish) {
+        return reject(new Error("Japanese and English fields cannot be empty."));
+      }
+      db.run('UPDATE vocabulary SET japanese = ?, english = ? WHERE id = ?', [trimmedJapanese, trimmedEnglish, id], function(err) {
+        if (err) {
+          if (err.code === 'SQLITE_CONSTRAINT' && err.message.includes('UNIQUE constraint failed: vocabulary.japanese')) {
+            return reject(new Error(`The word "${trimmedJapanese}" already exists.`));
+          }
+          return reject(err);
+        }
+        if (this.changes === 0) {
+          return reject(new Error(`Word with ID ${id} not found.`));
+        }
+        resolve({ changes: this.changes });
+      });
+    });
+  },
   getAllVocab() {
     return new Promise((resolve, reject) => {
       const query = `
@@ -356,6 +377,27 @@ export const dbOps = {
             else resolve({ id: sentenceId });
           });
         });
+      });
+    });
+  },
+  updateSentence(id, japanese, english) {
+    return new Promise((resolve, reject) => {
+      const trimmedJapanese = japanese.trim();
+      const trimmedEnglish = english.trim();
+      if (!trimmedJapanese || !trimmedEnglish) {
+        return reject(new Error("Japanese and English fields cannot be empty."));
+      }
+      db.run('UPDATE sentences SET japanese = ?, english = ? WHERE id = ?', [trimmedJapanese, trimmedEnglish, id], function(err) {
+        if (err) {
+          if (err.code === 'SQLITE_CONSTRAINT' && err.message.includes('UNIQUE constraint failed: sentences.japanese')) {
+            return reject(new Error(`The sentence "${trimmedJapanese.substring(0, 20)}..." already exists.`));
+          }
+          return reject(err);
+        }
+        if (this.changes === 0) {
+            return reject(new Error(`Sentence with ID ${id} not found.`));
+        }
+        resolve({ changes: this.changes });
       });
     });
   },
