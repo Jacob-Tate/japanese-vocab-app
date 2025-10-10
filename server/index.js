@@ -380,9 +380,14 @@ app.get('/api/game-statistics', async (req, res) => {
 app.get('/api/srs/due', async (req, res) => {
   try {
     const setId = req.query.setId && req.query.setId !== 'all' ? req.query.setId : null;
-    const limit = req.query.limit ? parseInt(req.query.limit, 10) : 20;
     const reviewOnly = req.query.reviewOnly === 'true';
-    const words = await dbOps.getDueSrsWords(setId, limit, reviewOnly);
+    const settings = await dbOps.getSettings();
+    const options = {
+      reviewLimit: parseInt(settings.reviewsPerDay || '100', 10),
+      newLimit: parseInt(settings.newCardsPerDay || '20', 10),
+      reviewOnly: reviewOnly,
+    };
+    const words = await dbOps.getDueSrsWords(setId, options);
     res.json(words);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -396,7 +401,8 @@ app.post('/api/srs/review', async (req, res) => {
         return res.status(400).json({ error: 'wordId and quality are required' });
     }
     await dbOps.updateSrsReview(wordId, quality);
-    await dbOps.addReviewHistory(wordId, 'word', 'srs', quality);
+    const historyResult = quality === 'again' ? 'incorrect' : 'correct';
+    await dbOps.addReviewHistory(wordId, 'word', 'srs', historyResult);
     await dbOps.updateStreak();
     res.json({ success: true });
   } catch (error) {
@@ -429,9 +435,14 @@ app.delete('/api/srs', async (req, res) => {
 app.get('/api/srs/sentences/due', async (req, res) => {
   try {
     const setId = req.query.setId && req.query.setId !== 'all' ? req.query.setId : null;
-    const limit = req.query.limit ? parseInt(req.query.limit, 10) : 20;
     const reviewOnly = req.query.reviewOnly === 'true';
-    const sentences = await dbOps.getDueSrsSentences(setId, limit, reviewOnly);
+    const settings = await dbOps.getSettings();
+    const options = {
+      reviewLimit: parseInt(settings.reviewsPerDay || '100', 10),
+      newLimit: parseInt(settings.newCardsPerDay || '20', 10),
+      reviewOnly: reviewOnly,
+    };
+    const sentences = await dbOps.getDueSrsSentences(setId, options);
     res.json(sentences);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -445,7 +456,8 @@ app.post('/api/srs/sentences/review', async (req, res) => {
         return res.status(400).json({ error: 'sentenceId and quality are required' });
     }
     await dbOps.updateSrsReviewSentence(sentenceId, quality);
-    await dbOps.addReviewHistory(sentenceId, 'sentence', 'srs_sentences', quality);
+    const historyResult = quality === 'again' ? 'incorrect' : 'correct';
+    await dbOps.addReviewHistory(sentenceId, 'sentence', 'srs_sentences', historyResult);
     await dbOps.updateStreak();
     res.json({ success: true });
   } catch (error) {

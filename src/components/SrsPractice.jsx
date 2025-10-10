@@ -1,6 +1,6 @@
 // src/components/SrsPractice.jsx
 import React, { useState, useEffect } from 'react';
-import { Brain, RotateCcw, Check, X, Volume2 } from 'lucide-react';
+import { Brain, RotateCcw, Volume2 } from 'lucide-react';
 import { api } from '../api';
 import { playAudio } from '../utils/audio';
 
@@ -10,7 +10,7 @@ export default function SrsPractice({ set, onExit, options }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [sessionResults, setSessionResults] = useState({ correct: 0, incorrect: 0, reCorrect: 0 });
+  const [sessionResults, setSessionResults] = useState({ correct: 0, incorrect: 0 });
   const [isSessionComplete, setIsSessionComplete] = useState(false);
 
   useEffect(() => {
@@ -20,13 +20,12 @@ export default function SrsPractice({ set, onExit, options }) {
   const loadSrsData = async () => {
     setIsLoading(true);
     try {
+      // The API now handles fetching settings and building the queue correctly
       const [due, srsStats] = await Promise.all([
         api.getDueSrsWords(set.id, options),
         api.getSrsStats(set.id)
       ]);
-      // originalAttempt tracks the status within this session: 'pending', 'incorrect'
-      setDueWords(due.map(word => ({ ...word, originalAttempt: 'pending' })));
-      
+      setDueWords(due);
       setStats(srsStats);
       if (due.length === 0) {
         setIsSessionComplete(true);
@@ -42,56 +41,35 @@ export default function SrsPractice({ set, onExit, options }) {
     if (currentIndex >= dueWords.length) return;
 
     const currentWord = dueWords[currentIndex];
-        
-    // Logic for an incorrect answer
-    if (quality === 'incorrect') {
-      // Only log the failure to the backend on the FIRST incorrect attempt this session
-      if (currentWord.originalAttempt === 'pending') {
-        await api.postSrsReview(currentWord.id, 'incorrect');
-        setSessionResults(prev => ({ ...prev, incorrect: prev.incorrect + 1 }));
-      }
+    await api.postSrsReview(currentWord.id, quality);
 
-      // Re-insert the failed word a few places ahead in the queue to be reviewed again soon.
-      const wordToRequeue = { ...currentWord, originalAttempt: 'incorrect' };
-      let newQueue = [...dueWords.slice(0, currentIndex), ...dueWords.slice(currentIndex + 1)];
-      const reinsertIndex = Math.min(currentIndex + 2, newQueue.length); // Insert 2 spots away or at the end
-      newQueue.splice(reinsertIndex, 0, wordToRequeue);
-            
-      setDueWords(newQueue);
-      setShowAnswer(false);
-        
-      // Logic for a correct answer
+    if (quality === 'again') {
+        setSessionResults(prev => ({ ...prev, incorrect: prev.incorrect + 1 }));
+        // Re-insert the failed word a few places ahead in the queue
+        const wordToRequeue = { ...currentWord };
+        let newQueue = [...dueWords];
+        newQueue.splice(currentIndex, 1); // Remove from current position
+        const reinsertIndex = Math.min(currentIndex + 3, newQueue.length);
+        newQueue.splice(reinsertIndex, 0, wordToRequeue);
+        setDueWords(newQueue);
     } else {
-      
-      // Only log a "correct" review to the backend if it was correct on the first try.
-      // This prevents overriding the "incorrect" status which correctly schedules it for tomorrow.
-      if (currentWord.originalAttempt === 'pending') {
-        await api.postSrsReview(currentWord.id, 'correct');
         setSessionResults(prev => ({ ...prev, correct: prev.correct + 1 }));
-      } else {
-        // If it was previously incorrect, we just count it as re-learned for the session stats.
-        setSessionResults(prev => ({ ...prev, reCorrect: prev.reCorrect + 1 }));
-      }
-            
-      // Remove the word from the session queue
-      const newQueue = [...dueWords.slice(0, currentIndex), ...dueWords.slice(currentIndex + 1)];
-      setDueWords(newQueue);
-      setShowAnswer(false);
-            
-      // If the queue is now empty, the session is over.
-      if (newQueue.length === 0) {
-        setIsSessionComplete(true);
-      } else if (currentIndex >= newQueue.length) {
-        // If we removed the last item, adjust index to prevent errors
-        setCurrentIndex(newQueue.length - 1);
-      }
+        // Correct answer, just remove it from this session's queue
+        const newQueue = dueWords.slice(1);
+        setDueWords(newQueue);
+
+        if (newQueue.length === 0) {
+            setIsSessionComplete(true);
+            return;
+        }
     }
+    setShowAnswer(false);
   };
 
   const startNewSession = () => {
     setCurrentIndex(0);
     setShowAnswer(false);
-    setSessionResults({ correct: 0, incorrect: 0, reCorrect: 0 });
+    setSessionResults({ correct: 0, incorrect: 0 });
     setIsSessionComplete(false);
     loadSrsData();
   };
@@ -105,9 +83,9 @@ export default function SrsPractice({ set, onExit, options }) {
     );
   }
     
-  const currentCard = !isSessionComplete && dueWords.length > 0 ? dueWords[currentIndex] : null;
+  const currentCard = !isSessionComplete && dueWords.length > 0 ? dueWords[0] : null;
 
-  if (isSessionComplete) {
+  if (isSessionComplete || !currentCard) {
     const totalReviewed = sessionResults.correct + sessionResults.incorrect;
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4 sm:p-6 text-center">
@@ -126,12 +104,6 @@ export default function SrsPractice({ set, onExit, options }) {
                 <div className="text-4xl font-bold">{sessionResults.incorrect}</div>
                 <div>Incorrect</div>
               </div>
-              {sessionResults.reCorrect > 0 && (
-                <div className="text-blue-600 dark:text-blue-400">
-                  <div className="text-4xl font-bold">{sessionResults.reCorrect}</div>
-                  <div>Re-learned</div>
-                </div>
-              )}
             </div>
           </div>
         )}
@@ -143,18 +115,6 @@ export default function SrsPractice({ set, onExit, options }) {
             Exit
           </button>
         </div>
-      </div>
-    );
-  }
-    
-  if (!currentCard) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-6 text-center">
-        <h2 className="text-2xl font-bold mb-4 dark:text-white">Spaced Repetition</h2>
-        <p className="dark:text-gray-300">Something went wrong. No card to display.</p>
-        <button onClick={onExit} className="mt-4 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600">
-            Exit
-        </button>
       </div>
     );
   }
@@ -204,18 +164,30 @@ export default function SrsPractice({ set, onExit, options }) {
         </div>
 
         {showAnswer ? (
-          <div className="flex flex-col sm:flex-row gap-4 w-full max-w-2xl">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full max-w-3xl">
             <button
-              onClick={() => handleReview('incorrect')}
-              className="flex-1 bg-red-500 text-white px-6 py-4 rounded-lg hover:bg-red-600 font-semibold text-lg flex items-center justify-center gap-2"
+              onClick={() => handleReview('again')}
+              className="p-4 rounded-lg font-semibold text-white bg-red-500 hover:bg-red-600"
             >
-              <X /> I forgot
+              Again
+            </button>
+             <button
+              onClick={() => handleReview('hard')}
+              className="p-4 rounded-lg font-semibold text-white bg-orange-500 hover:bg-orange-600"
+            >
+              Hard
             </button>
             <button
-              onClick={() => handleReview('correct')}
-              className="flex-1 bg-green-500 text-white px-6 py-4 rounded-lg hover:bg-green-600 font-semibold text-lg flex items-center justify-center gap-2"
+              onClick={() => handleReview('good')}
+              className="p-4 rounded-lg font-semibold text-white bg-blue-500 hover:bg-blue-600"
             >
-              <Check /> I knew it
+              Good
+            </button>
+            <button
+              onClick={() => handleReview('easy')}
+              className="p-4 rounded-lg font-semibold text-white bg-green-500 hover:bg-green-600"
+            >
+              Easy
             </button>
           </div>
         ) : (

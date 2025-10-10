@@ -594,66 +594,86 @@ export const dbOps = {
   },
 
   // SRS operations for Vocabulary
-  getDueSrsWords(setId, limit = 20, reviewOnly = false) {
-    return new Promise((resolve, reject) => {
-      const today = new Date().toISOString();
-      let query;
-      let params;
-      
-      const whereClause = reviewOnly
-        ? `srs.word_id IS NOT NULL AND srs.due_date <= ?`
-        : `srs.word_id IS NULL OR srs.due_date <= ?`;
+  async getDueSrsWords(setId, { reviewLimit = 100, newLimit = 20, reviewOnly = false }) {
+    const today = new Date().toISOString();
+    const setClause = setId ? `AND v.id IN (SELECT word_id FROM set_words WHERE set_id = ${setId})` : '';
 
-      if (setId) {
-        query = `
-          SELECT v.* FROM vocabulary v
-          JOIN set_words sw ON v.id = sw.word_id
-          LEFT JOIN srs_data srs ON v.id = srs.word_id
-          WHERE sw.set_id = ? AND (${whereClause})
-          ORDER BY srs.due_date ASC, RANDOM()
-          LIMIT ?
-        `;
-        params = [setId, today, limit];
-      } else {
-        query = `
-          SELECT v.* FROM vocabulary v
-          LEFT JOIN srs_data srs ON v.id = srs.word_id
-          WHERE ${whereClause}
-          ORDER BY srs.due_date ASC, RANDOM()
-          LIMIT ?
-        `;
-        params = [today, limit];
-      }
-      db.all(query, params, (err, rows) => { if (err) reject(err); else resolve(rows); });
+    // 1. Get due reviews
+    const reviewQuery = `
+      SELECT v.* FROM vocabulary v
+      JOIN srs_data srs ON v.id = srs.word_id
+      WHERE srs.due_date <= ? ${setClause}
+      ORDER BY srs.due_date ASC
+      LIMIT ?
+    `;
+    const reviews = await new Promise((resolve, reject) => {
+      db.all(reviewQuery, [today, reviewLimit], (err, rows) => {
+        if (err) reject(err); else resolve(rows);
+      });
     });
+
+    let newCards = [];
+    const newCardsNeeded = newLimit - (reviewOnly ? reviews.length : 0);
+
+    // 2. If new cards are allowed and needed, get them
+    if (!reviewOnly && newCardsNeeded > 0) {
+      const newQuery = `
+        SELECT v.* FROM vocabulary v
+        LEFT JOIN srs_data srs ON v.id = srs.word_id
+        WHERE srs.word_id IS NULL ${setClause}
+        ORDER BY RANDOM()
+        LIMIT ?
+      `;
+      newCards = await new Promise((resolve, reject) => {
+        db.all(newQuery, [newCardsNeeded], (err, rows) => {
+          if (err) reject(err); else resolve(rows);
+        });
+      });
+    }
+
+    // 3. Combine and shuffle
+    const combined = [...reviews, ...newCards];
+    return combined.sort(() => Math.random() - 0.5);
   },
   
-  updateSrsReview(wordId, quality) {
+  updateSrsReview(wordId, quality) { // quality can be 'again', 'hard', 'good', 'easy'
     return new Promise((resolve, reject) => {
       db.get('SELECT * FROM srs_data WHERE word_id = ?', [wordId], (err, row) => {
         if (err) return reject(err);
         let { ease_factor = 2.5, interval_days = 0, repetitions = 0, lapses = 0 } = row || {};
-        if (quality === 'correct') {
+        const isNewCard = !row || repetitions === 0;
+
+        if (quality === 'again') {
+          lapses += 1;
+          repetitions = 0;
+          interval_days = 1; // Show again tomorrow
+          ease_factor = Math.max(1.3, ease_factor - 0.2);
+        } else {
           repetitions += 1;
-          if (repetitions === 1) {
-            interval_days = 1;
+          if (isNewCard) {
+            interval_days = quality === 'good' ? 1 : quality === 'easy' ? 4 : 1;
           } else if (repetitions === 2) {
             interval_days = 6;
           } else {
             interval_days = Math.ceil(interval_days * ease_factor);
           }
-          ease_factor += 0.1;
-        } else {
-          lapses += 1;
-          repetitions = 0;
-          interval_days = 1;
-          ease_factor = Math.max(1.3, ease_factor - 0.2);
+          
+          if (quality === 'hard') {
+            interval_days = Math.ceil(interval_days * 1.2);
+            ease_factor = Math.max(1.3, ease_factor - 0.15);
+          } else if (quality === 'easy') {
+            interval_days = Math.ceil(interval_days * 1.3);
+            ease_factor += 0.15;
+          }
         }
-        interval_days = Math.min(interval_days, 365);
+        
+        interval_days = Math.min(interval_days, 365); // Cap interval at 1 year
         ease_factor = Math.max(1.3, Math.min(ease_factor, 2.5));
+
         const dueDate = new Date();
         dueDate.setDate(dueDate.getDate() + interval_days);
         const lastReviewed = new Date().toISOString();
+
         if (row) {
           db.run(`UPDATE srs_data SET due_date = ?, interval_days = ?, ease_factor = ?, repetitions = ?, lapses = ?, last_reviewed = ? WHERE word_id = ?`, [dueDate.toISOString(), interval_days, ease_factor, repetitions, lapses, lastReviewed, wordId], (err) => { if (err) reject(err); else resolve(); });
         } else {
@@ -713,38 +733,42 @@ export const dbOps = {
   },
 
   // SRS operations for Sentences
-  getDueSrsSentences(setId, limit = 20, reviewOnly = false) {
-    return new Promise((resolve, reject) => {
-      const today = new Date().toISOString();
-      let query;
-      let params;
+  async getDueSrsSentences(setId, { reviewLimit = 100, newLimit = 20, reviewOnly = false }) {
+    const today = new Date().toISOString();
+    const setClause = setId ? `AND s.id IN (SELECT sentence_id FROM set_sentences WHERE set_id = ${setId})` : '';
 
-      const whereClause = reviewOnly
-        ? `srs.sentence_id IS NOT NULL AND srs.due_date <= ?`
-        : `srs.sentence_id IS NULL OR srs.due_date <= ?`;
-
-      if (setId) {
-        query = `
-          SELECT s.* FROM sentences s
-          JOIN set_sentences ss ON s.id = ss.sentence_id
-          LEFT JOIN srs_data_sentences srs ON s.id = srs.sentence_id
-          WHERE ss.set_id = ? AND (${whereClause})
-          ORDER BY srs.due_date ASC, RANDOM()
-          LIMIT ?
-        `;
-        params = [setId, today, limit];
-      } else {
-        query = `
-          SELECT s.* FROM sentences s
-          LEFT JOIN srs_data_sentences srs ON s.id = srs.sentence_id
-          WHERE ${whereClause}
-          ORDER BY srs.due_date ASC, RANDOM()
-          LIMIT ?
-        `;
-        params = [today, limit];
-      }
-      db.all(query, params, (err, rows) => { if (err) reject(err); else resolve(rows); });
+    const reviewQuery = `
+      SELECT s.* FROM sentences s
+      JOIN srs_data_sentences srs ON s.id = srs.sentence_id
+      WHERE srs.due_date <= ? ${setClause}
+      ORDER BY srs.due_date ASC
+      LIMIT ?
+    `;
+    const reviews = await new Promise((resolve, reject) => {
+        db.all(reviewQuery, [today, reviewLimit], (err, rows) => {
+            if (err) reject(err); else resolve(rows);
+        });
     });
+
+    let newCards = [];
+    const newCardsNeeded = newLimit - (reviewOnly ? reviews.length : 0);
+    if (!reviewOnly && newCardsNeeded > 0) {
+        const newQuery = `
+            SELECT s.* FROM sentences s
+            LEFT JOIN srs_data_sentences srs ON s.id = srs.sentence_id
+            WHERE srs.sentence_id IS NULL ${setClause}
+            ORDER BY RANDOM()
+            LIMIT ?
+        `;
+        newCards = await new Promise((resolve, reject) => {
+            db.all(newQuery, [newCardsNeeded], (err, rows) => {
+                if (err) reject(err); else resolve(rows);
+            });
+        });
+    }
+
+    const combined = [...reviews, ...newCards];
+    return combined.sort(() => Math.random() - 0.5);
   },
   
   updateSrsReviewSentence(sentenceId, quality) {
@@ -752,20 +776,35 @@ export const dbOps = {
       db.get('SELECT * FROM srs_data_sentences WHERE sentence_id = ?', [sentenceId], (err, row) => {
         if (err) return reject(err);
         let { ease_factor = 2.5, interval_days = 0, repetitions = 0, lapses = 0 } = row || {};
-        if (quality === 'correct') {
-          repetitions += 1;
-          if (repetitions === 1) { interval_days = 1; } 
-          else if (repetitions === 2) { interval_days = 6; } 
-          else { interval_days = Math.ceil(interval_days * ease_factor); }
-          ease_factor += 0.1;
-        } else {
+        const isNewCard = !row || repetitions === 0;
+
+        if (quality === 'again') {
           lapses += 1;
           repetitions = 0;
-          interval_days = 1;
+          interval_days = 1; // Show again tomorrow
           ease_factor = Math.max(1.3, ease_factor - 0.2);
+        } else {
+          repetitions += 1;
+          if (isNewCard) {
+            interval_days = quality === 'good' ? 1 : quality === 'easy' ? 4 : 1;
+          } else if (repetitions === 2) {
+            interval_days = 6;
+          } else {
+            interval_days = Math.ceil(interval_days * ease_factor);
+          }
+          
+          if (quality === 'hard') {
+            interval_days = Math.ceil(interval_days * 1.2);
+            ease_factor = Math.max(1.3, ease_factor - 0.15);
+          } else if (quality === 'easy') {
+            interval_days = Math.ceil(interval_days * 1.3);
+            ease_factor += 0.15;
+          }
         }
+        
         interval_days = Math.min(interval_days, 365);
         ease_factor = Math.max(1.3, Math.min(ease_factor, 2.5));
+
         const dueDate = new Date();
         dueDate.setDate(dueDate.getDate() + interval_days);
         const lastReviewed = new Date().toISOString();
