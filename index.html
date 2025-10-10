@@ -19,6 +19,16 @@
       }
     </script>
     <script src="https://unpkg.com/wanakana"></script>
+    <style>
+      /* Hide scrollbar for a specific element but allow scrolling */
+      .no-scrollbar {
+        -ms-overflow-style: none;  /* IE and Edge */
+        scrollbar-width: none;  /* Firefox */
+      }
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;  /* Safari and Chrome */
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

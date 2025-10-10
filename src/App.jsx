@@ -1,6 +1,6 @@
 // src/App.jsx
 import React, { useState, useEffect } from 'react';
-import { Book, Layers, Play, MessageSquare, BarChart3, Download, Moon, Sun, BookOpen } from 'lucide-react';
+import { Home, Book, Layers, Play, MessageSquare, BarChart3, Download, Moon, Sun, BookOpen } from 'lucide-react';
 import { api } from './api';
 import VocabularyManager from './components/VocabularyManager';
 import SentenceManager from './components/SentenceManager';
@@ -27,12 +27,13 @@ import ConjugationPractice from './components/ConjugationPractice';
 import ParticlePractice from './components/ParticlePractice';
 import FlashcardDrillSentences from './components/FlashcardDrillSentences';
 import SrsPracticeSentences from './components/SrsPracticeSentences';
+import Dashboard from './components/Dashboard';
 
 export default function JapaneseVocabApp() {
   const [vocabulary, setVocabulary] = useState([]);
   const [sentences, setSentences] = useState([]);
   const [sets, setSets] = useState([]);
-  const [currentView, setCurrentView] = useState('vocab');
+  const [currentView, setCurrentView] = useState('dashboard');
   const [activeGame, setActiveGame] = useState(null);
   const [activeSet, setActiveSet] = useState(null);
   const [gameRepetitions, setGameRepetitions] = useState(1);
@@ -74,7 +75,8 @@ export default function JapaneseVocabApp() {
   const exitGame = () => {
     setActiveGame(null);
     setActiveSet(null);
-    setCurrentView('practice');
+    setCurrentView('dashboard');
+    loadData(); // Refresh data after a game session
   };
 
   const gameComponents = {
@@ -124,7 +126,10 @@ export default function JapaneseVocabApp() {
             </div>
           </header>
 
-          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4 sm:mb-6 overflow-x-auto">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4 sm:mb-6 overflow-x-auto no-scrollbar">
+            <button onClick={() => setCurrentView('dashboard')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${currentView === 'dashboard' ? 'bg-blue-500 text-white' : 'bg-white dark:bg-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
+              <Home size={20} /> Dashboard
+            </button>
             <button onClick={() => setCurrentView('vocab')} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-3 rounded-lg font-semibold transition-all whitespace-nowrap ${currentView === 'vocab' ? 'bg-blue-500 text-white' : 'bg-white dark:bg-gray-800 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'}`}>
               <Book size={20} /> Vocabulary
             </button>
@@ -149,6 +154,11 @@ export default function JapaneseVocabApp() {
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg transition-colors duration-200">
+            {currentView === 'dashboard' && <Dashboard 
+              onStartSrs={(set, options) => { setActiveSet(set); setSrsOptions(options); setActiveGame('srs'); }}
+              onStartSrsSentences={(set, options) => { setActiveSet(set); setSrsOptions(options); setActiveGame('srsSentences'); }}
+              onNavigate={(view) => setCurrentView(view)}
+            />}
             {currentView === 'vocab' && <VocabularyManager vocabulary={vocabulary} sets={sets} onRefresh={loadData} />}
             {currentView === 'sentences' && <SentenceManager sentences={sentences} sets={sets} onRefresh={loadData} />}
             {currentView === 'sets' && <SetManager vocabulary={vocabulary} sentences={sentences} sets={sets} onRefresh={loadData} />}
